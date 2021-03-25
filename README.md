@@ -8,8 +8,8 @@ Additional packages installation:
 - Pytorch CPU: conda install pytorch torchvision torchaudio cpuonly -c pytorch  
 More help: https://pytorch.org  
 
-<pre>
 # Usage
+<pre>
 python main.py [-h] --env ENV --mode MODE [--num_episodes NUM_EPISODES]
                [--max_steps_per_episode MAX_STEPS_PER_EPISODE] [--lr LR] [--discount DISCOUNT] [--eps_start EPS_START]
                [--eps_decay EPS_DECAY] [--eps_min EPS_MIN] [--show_actions_plot SHOW_ACTIONS_PLOT]
@@ -38,4 +38,4 @@ optional arguments:
 required named arguments:  
   --env ENV             Required, choose environment, possible values: lv1, lv2, lv3v1, lv3v2, lv3v3, lv4  
   --mode MODE           Required, choose mode, possible values: manual, q-learn, dqn  
-<\pre>
+</pre>
