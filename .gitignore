@@ -1,2 +1,4 @@
 .idea/
 __pycache__/
+dqn/__pycache__/
+wumpusEnvs/__pycache__/
