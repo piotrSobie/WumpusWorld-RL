@@ -15,6 +15,8 @@ def q_learn(wumpus_env, num_episodes_=10000, max_step_per_episode_=100, learning
 
     action_space_size = env.action_space_n
     state_space_size = env.observation_space_n
+    if state_space_size is None:
+        raise Exception("Environment not suitable for q-learning")
     q_table = np.zeros((state_space_size, action_space_size))
     print(f"Action space size: {action_space_size}")
     print(f"State space size: {state_space_size}")
