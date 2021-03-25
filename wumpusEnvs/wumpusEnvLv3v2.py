@@ -46,6 +46,7 @@ class WumpusWorldLv3v2:
         self.bump_string = "bump "
         self.scream_string = "scream "
 
+        self.dqn_observation_state_number = None
         self.observation_space_n = None
         self.grid_world = self.get_new_env()
         self.agentPosXY = [self.cave_entry_x, self.cave_entry_y]

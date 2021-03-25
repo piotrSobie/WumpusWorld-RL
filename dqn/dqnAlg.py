@@ -26,13 +26,15 @@ def dqn_algorithm(wumpus_env, batch_size_=256, gamma_=0.999, eps_start_=1, eps_e
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device {device}")
-    # em = EnvManager(env, device)
     strategy = EpsilonGreedyStrategy(eps_start, eps_end, eps_decay)
     agent = Agent(strategy, env.action_space_n, device)
     memory = ReplayMemory(memory_size)
 
-    policy_net = DQN(env.observation_space_n, env.action_space_n).to(device)
-    target_net = DQN(env.observation_space_n, env.action_space_n).to(device)
+    if env.dqn_observation_state_number is None:
+        raise Exception("Environment not suitable for dqn")
+
+    policy_net = DQN(env.dqn_observation_state_number, env.action_space_n).to(device)
+    target_net = DQN(env.dqn_observation_state_number, env.action_space_n).to(device)
     target_net.load_state_dict(policy_net.state_dict())
     target_net.eval()  # tells that this network is not in training mode
     optimizer = optim.Adam(params=policy_net.parameters(), lr=lr)

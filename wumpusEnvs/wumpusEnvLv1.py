@@ -21,6 +21,7 @@ class WumpusWorldLv1:
         self.stench_string = "Stench"
         self.breeze_string = "Breeze"
 
+        self.dqn_observation_state_number = None
         self.observation_space_n = None
         self.state_number = None
         self.grid_world = self.get_new_env()

@@ -78,6 +78,7 @@ class WumpusWorldLv4:
         self.number_of_golds = number_of_golds_
 
         self.observation_space_n = None
+        self.dqn_observation_state_number = None
         self.grid_world = self.get_new_env()
         self.agentPosXY = [self.cave_entry_x, self.cave_entry_y]
 
@@ -136,7 +137,8 @@ class WumpusWorldLv4:
         # 2 ^ 2(direction) * 2 ^ 1(bump) * 2 ^ 1(scream) * 2 ^ 16( if room visited) *2 ^ 16(stench) * 2 ^ 16(breeze)
         # * 2^16 (glitter) * 2^16 (where is agent) * 2^1 (has gold) * 2^1 (has arrow)
         # self.observation_space_n = 2**2 * 2**1 * 2**1 * 2**16 * 2**16 * 2**16 * 2**16 * 2**16 * 2**1 * 2**1
-        self.observation_space_n = 10
+        self.observation_space_n = None  # not suitable for q-learn
+        self.dqn_observation_state_number = 10
 
         return env
 

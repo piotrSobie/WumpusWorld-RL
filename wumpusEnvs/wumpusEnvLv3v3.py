@@ -49,6 +49,7 @@ class WumpusWorldLv3v3:
         self.number_of_pits = number_of_pits_
         self.number_of_golds = number_of_golds_
 
+        self.dqn_observation_state_number = None
         self.observation_space_n = None
         self.grid_world = self.get_new_env()
         self.agentPosXY = [self.cave_entry_x, self.cave_entry_y]

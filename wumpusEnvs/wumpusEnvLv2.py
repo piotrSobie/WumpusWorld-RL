@@ -37,6 +37,7 @@ class WumpusWorldLv2:
         self.breeze_string = "Breeze"
         self.glitter_string = "Glitter"
 
+        self.dqn_observation_state_number = None
         self.observation_space_n = None
         self.grid_world = self.get_new_env()
         self.agentPosXY = [self.cave_entry_x, self.cave_entry_y]
