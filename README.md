@@ -7,6 +7,7 @@ Additional packages installation:
 - Matplotlib: conda install -c anaconda matplotlib
 - Pytorch CPU: conda install pytorch torchvision torchaudio cpuonly -c pytorch  
 More help: https://pytorch.org  
+- pip install pygame  
 
 # Usage
 <pre>
@@ -39,5 +40,5 @@ optional arguments:
 
 required named arguments:  
   --env ENV             Required, choose environment, possible values: lv1, lv2, lv3v1, lv3v2, lv3v3, lv4  
-  --mode MODE           Required, choose mode, possible values: manual, q-learn, dqn  
+  --mode MODE           Required, choose mode, possible values: manual, manual-cmd, q-learn, dqn  
 </pre>
