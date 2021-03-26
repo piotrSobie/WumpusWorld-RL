@@ -11,10 +11,11 @@ More help: https://pytorch.org
 # Usage
 <pre>
 python main.py [-h] --env ENV --mode MODE [--num_episodes NUM_EPISODES]
-               [--max_steps_per_episode MAX_STEPS_PER_EPISODE] [--lr LR] [--discount DISCOUNT] [--eps_start EPS_START]
-               [--eps_decay EPS_DECAY] [--eps_min EPS_MIN] [--show_actions_plot SHOW_ACTIONS_PLOT]
-               [--show_reward_plot SHOW_REWARD_PLOT] [--show_games_won_plot SHOW_GAMES_WON_PLOT]
-               [--show_learned_path SHOW_LEARNED_PATH] [--batch_size BATCH_SIZE] [--target_update TARGET_UPDATE]
+               [--max_steps_per_episode MAX_STEPS_PER_EPISODE] [--lr LR] [--discount DISCOUNT]
+               [--eps_start EPS_START] [--eps_decay EPS_DECAY] [--eps_min EPS_MIN]
+               [--show_actions_plot SHOW_ACTIONS_PLOT] [--show_reward_plot SHOW_REWARD_PLOT]
+               [--show_games_won_plot SHOW_GAMES_WON_PLOT] [--show_learned_path SHOW_LEARNED_PATH]
+               [--batch_size BATCH_SIZE] [--target_update TARGET_UPDATE]
                [--memory_size MEMORY_SIZE]  
                
                
@@ -32,7 +33,8 @@ optional arguments:
   --show_games_won_plot SHOW_GAMES_WON_PLOT     Show plot with games won, default=True  
   --show_learned_path SHOW_LEARNED_PATH         Show learned path after learning, default=True  
   --batch_size BATCH_SIZE                       Used in DQN replay memory, default=256  
-  --target_update TARGET_UPDATE                 Used in DQN, tells how often target network should be updated, default=10  
+  --target_update TARGET_UPDATE                 Used in DQN, tells how often target network should be updated,
+                                                default=10  
   --memory_size MEMORY_SIZE                     Used in DQN, set replay memory size, default=100000  
 
 required named arguments:  
