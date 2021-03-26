@@ -6,6 +6,7 @@ from wumpusEnvs.wumpusEnvLv3v3 import WumpusWorldLv3v3
 from wumpusEnvs.wumpusEnvLv4 import WumpusWorldLv4
 
 from manualPlay import manual_play_lv1, manual_play_lv2_plus
+from manualPlayPygame import manual_play_pygame_lv1, manual_play_pygame_lv2_plus
 from qLearn import q_learn
 from dqn.dqnAlg import dqn_algorithm
 
@@ -41,7 +42,7 @@ if __name__ == '__main__':
     required_args = parser.add_argument_group("required named arguments")
     required_args.add_argument("--env", help="Required, choose environment, possible values:"
                                       " lv1, lv2, lv3v1, lv3v2, lv3v3, lv4", required=True)
-    required_args.add_argument("--mode", help="Required, choose mode, possible values: manual, q-learn, dqn",
+    required_args.add_argument("--mode", help="Required, choose mode, possible values: manual, manual-cmd q-learn, dqn",
                                required=True)
     # optional arguments
     parser.add_argument("--num_episodes", help=f"Number of learning episodes, default={num_episodes}")
@@ -143,6 +144,8 @@ if __name__ == '__main__':
 
     if args.mode == "manual":
         mode = "manual"
+    elif args.mode == "manual-cmd":
+        mode = "manual-cmd"
     elif args.mode == "q-learn":
         mode = "q-learn"
     elif args.mode == "dqn":
@@ -174,6 +177,11 @@ if __name__ == '__main__':
     time.sleep(time_for_reading_set_parameters)
 
     if mode == "manual":
+        if args.env == "lv1":
+            manual_play_pygame_lv1()
+        else:
+            manual_play_pygame_lv2_plus(examined_env)
+    elif mode == "manual-cmd":
         if args.env == "lv1":
             manual_play_lv1()
         else:

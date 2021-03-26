@@ -192,7 +192,7 @@ class WumpusWorldLv2:
                 info = "You left cave with gold, victory"
                 game_won = True
             else:
-                info = "Agent attempted to leave cave, but he didn't have gold or wasn't in the leave position"
+                info = "Can't leave yet"
         else:
             raise Exception("Invalid action")
 
@@ -236,6 +236,17 @@ class WumpusWorldLv2:
 
         if self.grid_world[self.agentPosXY[0]][self.agentPosXY[1]] == self.gold_field:
             sensed.append(self.glitter_string)
+
+        return sensed
+
+    def get_sensed_string(self):
+        sesnsed_danger = self.use_senses()
+        sensed = ""
+        if not sesnsed_danger:
+            sensed += "nothing"
+        else:
+            for i in sesnsed_danger:
+                sensed += i + " "
 
         return sensed
 
