@@ -25,7 +25,9 @@ class WumpusWorldLv1:
         self.observation_space_n = None
         self.state_number = None
         self.grid_world = self.get_new_env()
-        self.agentPosXY = [3, 0]
+        self.cave_entry_x = 3
+        self.cave_entry_y = 0
+        self.agentPosXY = [self.cave_entry_x, self.cave_entry_y]
 
         self.living_reward = -1
         self.arrow_reward = -10
@@ -54,7 +56,7 @@ class WumpusWorldLv1:
 
     def reset_env(self):
         self.grid_world = self.get_new_env()
-        self.agentPosXY = [3, 0]
+        self.agentPosXY = [self.cave_entry_x, self.cave_entry_y]
         return self.state_number[self.agentPosXY[0]][self.agentPosXY[1]]
 
     def random_action(self):

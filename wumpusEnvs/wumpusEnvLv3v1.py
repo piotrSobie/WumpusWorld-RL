@@ -208,7 +208,7 @@ class WumpusWorldLv3v1:
                 info = "You left cave with gold, victory"
                 game_won = True
             else:
-                info = "Agent attempted to leave cave, but he didn't have gold or wasn't in the entry position"
+                info = "Can't leave yet"
         else:
             raise Exception("Invalid action")
 
