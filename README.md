@@ -33,8 +33,8 @@ optional arguments:
   --show_games_won_plot SHOW_GAMES_WON_PLOT     Show plot with games won, default=True  
   --show_learned_path SHOW_LEARNED_PATH         Show learned path after learning, default=True  
   --batch_size BATCH_SIZE                       Used in DQN replay memory, default=256  
-  --target_update TARGET_UPDATE                 Used in DQN, tells how often target network should be updated,
-                                                default=10  
+  --target_update TARGET_UPDATE                 Used in DQN, tells how often target network should be
+                                                updated, default=10  
   --memory_size MEMORY_SIZE                     Used in DQN, set replay memory size, default=100000  
 
 required named arguments:  
