@@ -1,6 +1,10 @@
 from wumpusEnvs.wumpusEnvLv1 import WumpusWorldLv1
-from msvcrt import getch
+import os
 import sys
+if os.name == 'nt':
+    from msvcrt import getch
+else:
+    from getch import getch
 
 
 def manual_play_lv1():
