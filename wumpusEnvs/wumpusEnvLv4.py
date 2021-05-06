@@ -1,4 +1,5 @@
 import random
+import numpy as np
 
 
 # 4x4 randomized grid world
@@ -24,10 +25,12 @@ class WumpusWorldLv4:
 
         self.cave_entry_x = 3
         self.cave_entry_y = 0
-        self.wumpus_pos_x = None
-        self.wumpus_pos_y = None
-        self.gold_pos_x = None
-        self.gold_pos_y = None
+        self.wumpus_pos_x = 1
+        self.wumpus_pos_y = 0
+        self.gold_pos_x = 2
+        self.gold_pos_y = 0
+
+        self.random_grid = False
 
         # 0 - up, 1 - right, 2 - down, 3 - left
         self.agent_direction = 1
@@ -89,9 +92,10 @@ class WumpusWorldLv4:
         self.death_by_pit_reward = -1000
 
         self.wumpus_killed_reward = 0
-        self.took_gold_reward = 0
-        self.turning_reward = 0
+        self.took_gold_reward = 5000
+        self.turning_reward = -5
         self.already_visited_reward = 0
+        self.didnt_move_reward = 0
 
     def get_random_env(self):
         size_x = 4
@@ -131,8 +135,22 @@ class WumpusWorldLv4:
 
         return env
 
+    def get_stable_env(self):
+        env = [[self.regular_field, self.pit_field, self.regular_field, self.pit_field],
+               [self.regular_field, self.regular_field, self.pit_field, self.regular_field],
+               [self.regular_field, self.regular_field, self.regular_field, self.regular_field],
+               [self.regular_field, self.regular_field, self.pit_field, self.regular_field]]
+        self.observation_space_n = 0
+        env[self.wumpus_pos_x][self.wumpus_pos_y] = self.wumpus_field
+        env[self.gold_pos_x][self.gold_pos_y] = self.gold_field
+
+        return env
+
     def get_new_env(self):
-        env = self.get_random_env()
+        if self.random_grid:
+            env = self.get_random_env()
+        else:
+            env = self.get_stable_env()
 
         # 2 ^ 2(direction) * 2 ^ 1(bump) * 2 ^ 1(scream) * 2 ^ 16( if room visited) *2 ^ 16(stench) * 2 ^ 16(breeze)
         # * 2^16 (glitter) * 2^16 (where is agent) * 2^1 (has gold) * 2^1 (has arrow)
@@ -150,14 +168,31 @@ class WumpusWorldLv4:
 
         return int(array_str, 2)
 
+    def two_d_to_one_d(self, array):
+        x = np.array(array, dtype=np.float32)
+        x = x.flatten()
+        return x
+
+    def scalar_to_array(self, scalar):
+        x = np.zeros(1, dtype=np.float32)
+        x[0] = scalar
+        return x
+
     def get_state(self):
         # array:
         # [direction, bump, scream, if room visited, stench, breeze, glitter, where is agent, has gold, has arrow]
         self.use_senses()
 
-        state = [self.agent_direction, self.bump, self.scream, self.array_to_int(self.visited_rooms),
-                 self.array_to_int(self.stench_rooms), self.array_to_int(self.breeze_rooms),
-                 self.array_to_int(self.glitter_rooms), self.array_to_int(self.agent_pos), self.gold, self.arrow]
+        # state = [self.scalar_to_array(self.agent_direction), self.scalar_to_array(self.bump),
+        #          self.scalar_to_array(self.scream), self.two_d_to_one_d(self.visited_rooms),
+        #          self.two_d_to_one_d(self.stench_rooms), self.two_d_to_one_d(self.breeze_rooms),
+        #          self.two_d_to_one_d(self.glitter_rooms), self.two_d_to_one_d(self.agent_pos),
+        #          self.scalar_to_array(self.gold), self.scalar_to_array(self.arrow)]
+        state = np.concatenate((self.scalar_to_array(self.agent_direction), self.scalar_to_array(self.bump),
+                 self.scalar_to_array(self.scream), self.two_d_to_one_d(self.visited_rooms),
+                 self.two_d_to_one_d(self.stench_rooms), self.two_d_to_one_d(self.breeze_rooms),
+                 self.two_d_to_one_d(self.glitter_rooms), self.two_d_to_one_d(self.agent_pos),
+                 self.scalar_to_array(self.gold), self.scalar_to_array(self.arrow)))
 
         return state
 
@@ -207,6 +242,9 @@ class WumpusWorldLv4:
         done = False
         game_won = False
         self.bump = 0
+
+        startPosX = self.agentPosXY[0]
+        startPosY = self.agentPosXY[1]
 
         if self.visited_rooms[self.agentPosXY[0]][self.agentPosXY[1]] == 1:
             reward += self.already_visited_reward
@@ -278,8 +316,8 @@ class WumpusWorldLv4:
                 self.gold = 1
                 info = "Agent took gold"
                 # finish game after taking gold
-                # done = True
-                # game_won = True
+                done = True
+                game_won = True
                 reward += self.took_gold_reward
             else:
                 info = "Agent attempted to take gold, but there wasn't any"
@@ -333,6 +371,9 @@ class WumpusWorldLv4:
 
         self.agent_pos[self.agentPosXY[0]][self.agentPosXY[1]] = 1
         self.visited_rooms[self.agentPosXY[0]][self.agentPosXY[1]] = 1
+
+        if (self.agentPosXY[0] == startPosX) & (self.agentPosXY[1] == startPosY):
+            reward += self.didnt_move_reward
 
         new_state = self.get_state()
         return new_state, reward, done, info, game_won
