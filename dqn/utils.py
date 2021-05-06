@@ -1,59 +1,38 @@
-from collections import namedtuple
 import matplotlib.pyplot as plt
-import torch
+import numpy as np
 
 
-Experience = namedtuple(
-    'Experience',
-    ('state', 'action', 'next_state', 'reward')
-)
+def to_one_hot_encoding(s, obs_n):
+    x = np.zeros(obs_n, dtype=np.float32)
+    x[s] = 1.0
+    return x
 
 
-def plot(values, moving_avg_period):
-    plt.figure(2)
-    plt.clf()
-    plt.title('Training...')
-    plt.xlabel('Episode')
-    plt.ylabel('Duration')
-    plt.plot(values)
+def plot_learning(x, scores, epsilons, filename, lines=None):
+    fig = plt.figure()
+    ax = fig.add_subplot(111, label="1")
+    ax2 = fig.add_subplot(111, label="2", frame_on=False)
 
-    moving_avg = get_moving_average(moving_avg_period, values)
-    plt.plot(moving_avg)
-    plt.pause(0.0001)
-    print(f"Episode {len(values)}\n {moving_avg_period} episode moving avg: {moving_avg[-1]}")
+    ax.plot(x, epsilons, color="C0")
+    ax.set_xlabel("Game", color="C0")
+    ax.set_ylabel("Epsilon", color="C0")
+    ax.tick_params(axis='x', colors="C0")
+    ax.tick_params(axis='y', colors="C0")
 
+    N = len(scores)
+    running_avg = np.empty(N)
+    for t in range(N):
+        running_avg[t] = np.mean(scores[max(0, t-20):(t+1)])
 
-def get_moving_average(period, values):
-    values = torch.tensor(values, dtype=torch.float)
-    if len(values) >= period:
-        moving_avg = values.unfold(dimension=0, size=period, step=1).mean(dim=1).flatten(start_dim=0)
-        moving_avg = torch.cat((torch.zeros(period - 1), moving_avg))
-        return moving_avg.numpy()
-    else:
-        moving_avg = torch.zeros(len(values))
-        return moving_avg.numpy()
+    ax2.scatter(x, running_avg, color="C1")
+    ax2.axes.get_xaxis().set_visible(False)
+    ax2.yaxis.tick_right()
+    ax2.set_ylabel('Score', color="C1")
+    ax2.yaxis.set_label_position('right')
+    ax2.tick_params(axis='y', colors="C1")
 
+    if lines is not None:
+        for line in lines:
+            plt.axvline(x=line)
 
-def extract_tensors(experiences):
-    # convert batch of Experiences to Experience of batches
-    batch = Experience(*zip(*experiences))
-
-    t1 = torch.cat(batch.state)
-    t2 = torch.cat(batch.action)
-    t3 = torch.cat(batch.reward)
-    t4 = torch.cat(batch.next_state)
-
-    return t1, t2, t3, t4
-
-
-class QValues:
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    @staticmethod
-    def get_current(policy_net, states, actions):
-        return policy_net(states).gather(dim=1, index=actions.unsqueeze(-1))
-
-    @staticmethod
-    def get_next(target_net, next_states):
-        values = target_net(next_states).max(dim=1)[0].detach()
-        return values
+    plt.savefig(filename)
