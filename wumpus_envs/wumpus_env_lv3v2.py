@@ -1,11 +1,12 @@
 import random
 
 
-# 4x4 grid world
+# 4x4 constant grid world
 # agent can take actions (6): move forward, turn left, turn right, take gold, shoot, climb out of the cave
-# states (32): stench (2) X breeze (2) X glitter (2) X bump (2) X scream (2)
-# bad idea
-class WumpusWorldLv3v1:
+# agent can detect stench, breeze, bump (if he is next to end of map) nad their direction, glitter
+# states (32768): agent_x (4) X agent_y (4) X agent's direction (4) X has gold (2) X has arrow (2)
+#                 X stench (5) X breeze (5) X bump (5) X glitter (2)
+class WumpusWorldLv3v2:
     def __init__(self):
         # move forward, turn left, turn right, take gold, shoot, climb out of the cave
         self.action_space = [0, 1, 2, 3, 4, 5]
@@ -20,8 +21,10 @@ class WumpusWorldLv3v1:
         self.agent_field_turned_right = u'\u2192'
         self.agent_field_turned_down = u'\u2193'
         self.agent_field_turned_left = u'\u2190'
-        # stench, breeze, glitter, bump, scream
-        self.sensed_data = [0, 0, 0, 0, 0]
+        # stench (5), breeze (5), bump (5), glitter (2)
+        # for stench, breeze, bump: 0 - up, 1 - right, 2 - down, 3 - left, 4 - nothing
+        # for glitter: 1- yes, 0 - no
+        self.sensed_data = [4, 4, 4, 0]
 
         # 0 - up, 1 - right, 2 - down, 3 - left
         self.agent_direction = 1
@@ -36,11 +39,11 @@ class WumpusWorldLv3v1:
         self.gold_pos_x = 0
         self.gold_pos_y = 3
 
-        self.stench_string = "Stench "
-        self.breeze_string = "Breeze "
-        self.glitter_string = "Glitter "
-        self.bump_string = "Bump "
-        self.scream_string = "Scream "
+        self.stench_string = "stench "
+        self.breeze_string = "breeze "
+        self.glitter_string = "glitter "
+        self.bump_string = "bump "
+        self.scream_string = "scream "
 
         self.dqn_observation_state_number = None
         self.observation_space_n = None
@@ -49,7 +52,7 @@ class WumpusWorldLv3v1:
 
         self.living_reward = -1
         self.arrow_reward = -10
-        self.gold_reward = 1000
+        self.left_with_gold = 1000
         self.death_by_wumpus_reward = -1000
         self.death_by_pit_reward = -1000
 
@@ -64,25 +67,28 @@ class WumpusWorldLv3v1:
         env[self.wumpus_pos_x][self.wumpus_pos_y] = self.wumpus_field
         env[self.gold_pos_x][self.gold_pos_y] = self.gold_field
 
-        # observation space = stench (2) X breeze (2) X glitter (2) X bump (2) X scream (2)
-        self.observation_space_n = 2 ** len(self.sensed_data)
+        # agent_x (4) X agent_y (4) X agent's direction (4) X has gold (2) X has arrow (2)
+        # X stench (5) X breeze (5) X bump (5) X glitter (2)
+        self.observation_space_n = 4 * 4 * 4 * 2 * 2 * 5 * 5 * 5 * 2
 
         return env
 
     def get_state(self):
-        # nr 0-31
+        # nr 0-63999
         self.use_senses()
-        # stench, breeze, glitter, bump, scream
-        return 16 * self.sensed_data[0] + 8 * self.sensed_data[1] + 4 * self.sensed_data[2] + 2 * self.sensed_data[3] \
-               + self.sensed_data[4]
+        # states (64000): agent_x (4) X agent_y (4) X agent's direction (4) X has gold (2) X has arrow (2)
+        #                 X stench (5) X breeze (5) X bump (5) X glitter (2)
+        # self.sensed_data = stench (5), breeze (5), bump (5), glitter (2)
+        return self.agentPosXY[0] + 4 * self.agentPosXY[1] + (4 * 4) * self.agent_direction + (4 * 4 * 4) * self.gold + (4 * 4 * 4 * 2) * self.arrow + (4 * 4 * 4 * 2 * 2) * self.sensed_data[0] + (4 * 4 * 4 * 2 * 2 * 5) * self.sensed_data[1] + (4 * 4 * 4 * 2 * 2 * 5 * 5) * self.sensed_data[2] + (4 * 4 * 4 * 2 * 2 * 5 * 5 * 5) * self.sensed_data[3]
 
     def reset_env(self):
         self.grid_world = self.get_new_env()
         self.agentPosXY = [self.cave_entry_x, self.cave_entry_y]
         self.agent_direction = 1
-        self.use_senses()
         self.arrow = 1
         self.gold = 0
+        self.sensed_data = [4, 4, 4, 0]
+        self.use_senses()
         return self.get_state()
 
     def random_action(self):
@@ -96,8 +102,10 @@ class WumpusWorldLv3v1:
         info = None
         done = False
         game_won = False
-        # stench, breeze, glitter, bump, scream
-        self.sensed_data = [0, 0, 0, 0, 0]
+        # stench (5), breeze (5), bump (5), glitter (2)
+        # for stench, breeze, bump: 0 - up, 1 - right, 2 - down, 3 - left, 4 - nothing
+        # for glitter: 1- yes, 0 - no
+        self.sensed_data = [4, 4, 4, 0]
 
         if self.grid_world[self.agentPosXY[0]][self.agentPosXY[1]] == self.regular_field:
             self.grid_world[self.agentPosXY[0]][self.agentPosXY[1]] = self.visited_field
@@ -110,28 +118,28 @@ class WumpusWorldLv3v1:
             if self.agent_direction == 0:
                 self.agentPosXY[0] -= 1
                 if self.agentPosXY[0] < 0:
-                    self.sensed_data[3] = 1
+                    self.sensed_data[2] = 0
                     self.agentPosXY[0] = 0
                 info += "up"
             # right
             elif self.agent_direction == 1:
                 self.agentPosXY[1] += 1
                 if self.agentPosXY[1] > len(self.grid_world[self.agentPosXY[0]]) - 1:
-                    self.sensed_data[3] = 1
+                    self.sensed_data[2] = 1
                     self.agentPosXY[1] = len(self.grid_world[self.agentPosXY[0]]) - 1
                 info += "right"
             # down
             elif self.agent_direction == 2:
                 self.agentPosXY[0] += 1
                 if self.agentPosXY[0] > len(self.grid_world) - 1:
-                    self.sensed_data[3] = 1
+                    self.sensed_data[2] = 2
                     self.agentPosXY[0] = len(self.grid_world) - 1
                 info += "down"
             # left
             elif self.agent_direction == 3:
                 self.agentPosXY[1] -= 1
                 if self.agentPosXY[1] < 0:
-                    self.sensed_data[3] = 1
+                    self.sensed_data[2] = 3
                     self.agentPosXY[1] = 0
                 info += "left"
             else:
@@ -176,34 +184,30 @@ class WumpusWorldLv3v1:
                         info += " Wumpus is dead"
                         self.grid_world[self.wumpus_pos_x][self.wumpus_pos_y] = self.regular_field
                         reward += self.wumpus_killed_reward
-                        self.sensed_data[4] = 1
                 # right
                 elif self.agent_direction == 1:
                     if (self.agentPosXY[0] == self.wumpus_pos_x) & (self.agentPosXY[1] < self.wumpus_pos_y):
                         info += " Wumpus is dead"
                         self.grid_world[self.wumpus_pos_x][self.wumpus_pos_y] = self.regular_field
                         reward += self.wumpus_killed_reward
-                        self.sensed_data[4] = 1
                 # down
                 elif self.agent_direction == 2:
                     if (self.agentPosXY[1] == self.wumpus_pos_y) & (self.agentPosXY[0] < self.wumpus_pos_x):
                         info += " Wumpus is dead"
                         self.grid_world[self.wumpus_pos_x][self.wumpus_pos_y] = self.regular_field
                         reward += self.wumpus_killed_reward
-                        self.sensed_data[4] = 1
                 # left
                 elif self.agent_direction == 3:
                     if (self.agentPosXY[0] == self.wumpus_pos_x) & (self.agentPosXY[1] > self.wumpus_pos_y):
                         info += " Wumpus is dead"
                         self.grid_world[self.wumpus_pos_x][self.wumpus_pos_y] = self.regular_field
                         reward += self.wumpus_killed_reward
-                        self.sensed_data[4] = 1
             else:
                 info = "Arrow no available, nothing happened"
         # climb out of the cave
         elif action == 5:
             if (self.agentPosXY[0] == self.cave_entry_x) & (self.agentPosXY[1] == self.cave_entry_y) & (self.gold == 1):
-                reward += 1000
+                reward += self.left_with_gold
                 done = True
                 info = "You left cave with gold, victory"
                 game_won = True
@@ -216,44 +220,80 @@ class WumpusWorldLv3v1:
         return new_state, reward, done, info, game_won
 
     def use_senses(self):
-        # stench, breeze, glitter, bump, scream
-        self.sensed_data = [0, 0, 0, 0, 0]
+        # stench (5), breeze (5), bump (5), glitter (2)
+        # for stench, breeze, bump: 0 - up, 1 - right, 2 - down, 3 - left, 4 - nothing
+        # for glitter: 1- yes, 0 - no
 
+        # down
         if self.agentPosXY[0] + 1 <= len(self.grid_world) - 1:
             if self.grid_world[self.agentPosXY[0] + 1][self.agentPosXY[1]] == self.wumpus_field:
-                self.sensed_data[0] = 1
+                self.sensed_data[0] = 2
             if self.grid_world[self.agentPosXY[0] + 1][self.agentPosXY[1]] == self.pit_field:
-                self.sensed_data[1] = 1
+                self.sensed_data[1] = 2
 
+        # up
         if self.agentPosXY[0] - 1 >= 0:
             if self.grid_world[self.agentPosXY[0] - 1][self.agentPosXY[1]] == self.wumpus_field:
-                self.sensed_data[0] = 1
+                self.sensed_data[0] = 0
             if self.grid_world[self.agentPosXY[0] - 1][self.agentPosXY[1]] == self.pit_field:
-                self.sensed_data[1] = 1
+                self.sensed_data[1] = 0
 
+        # right
         if self.agentPosXY[1] + 1 <= len(self.grid_world[self.agentPosXY[0]]) - 1:
             if self.grid_world[self.agentPosXY[0]][self.agentPosXY[1] + 1] == self.wumpus_field:
                 self.sensed_data[0] = 1
             if self.grid_world[self.agentPosXY[0]][self.agentPosXY[1] + 1] == self.pit_field:
                 self.sensed_data[1] = 1
 
+        # left
         if self.agentPosXY[1] - 1 >= 0:
             if self.grid_world[self.agentPosXY[0]][self.agentPosXY[1] - 1] == self.wumpus_field:
-                self.sensed_data[0] = 1
+                self.sensed_data[0] = 3
             if self.grid_world[self.agentPosXY[0]][self.agentPosXY[1] - 1] == self.pit_field:
-                self.sensed_data[1] = 1
+                self.sensed_data[1] = 3
 
         if self.grid_world[self.agentPosXY[0]][self.agentPosXY[1]] == self.gold_field:
-            self.sensed_data[2] = 1
+            self.sensed_data[3] = 1
 
     def get_sensed_string(self):
         sensed = ""
-        # stench, breeze, glitter, bump, scream
-        sensed += self.stench_string if self.sensed_data[0] == 1 else ""
-        sensed += self.breeze_string if self.sensed_data[1] == 1 else ""
-        sensed += self.glitter_string if self.sensed_data[2] == 1 else ""
-        sensed += self.bump_string if self.sensed_data[3] == 1 else ""
-        sensed += self.scream_string if self.sensed_data[4] == 1 else ""
+        # stench (5), breeze (5), bump (5), glitter (2)
+        # for stench, breeze, bump: 0 - up, 1 - right, 2 - down, 3 - left, 4 - nothing
+        # for glitter: 1- yes, 0 - no
+
+        # stench
+        if self.sensed_data[0] == 0:
+            sensed += self.stench_string + " - up "
+        elif self.sensed_data[0] == 1:
+            sensed += self.stench_string + " - right "
+        elif self.sensed_data[0] == 2:
+            sensed += self.stench_string + " - down "
+        elif self.sensed_data[0] == 3:
+            sensed += self.stench_string + " - left "
+
+        # breeze
+        if self.sensed_data[1] == 0:
+            sensed += self.breeze_string + " - up "
+        elif self.sensed_data[1] == 1:
+            sensed += self.breeze_string + " - right "
+        elif self.sensed_data[1] == 2:
+            sensed += self.breeze_string + " - down "
+        elif self.sensed_data[1] == 3:
+            sensed += self.breeze_string + " - left "
+
+        # bump
+        if self.sensed_data[2] == 0:
+            sensed += self.bump_string + " - up "
+        elif self.sensed_data[2] == 1:
+            sensed += self.bump_string + " - right "
+        elif self.sensed_data[2] == 2:
+            sensed += self.bump_string + " - down "
+        elif self.sensed_data[2] == 3:
+            sensed += self.bump_string + " - left "
+
+        # glitter
+        if self.sensed_data[3] == 1:
+            sensed += self.glitter_string
 
         sensed += "nothing" if sensed == "" else ""
 

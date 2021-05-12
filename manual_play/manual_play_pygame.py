@@ -1,4 +1,4 @@
-from wumpusEnvs.wumpusEnvLv1 import WumpusWorldLv1
+from wumpus_envs.wumpus_env_lv1 import WumpusWorldLv1
 
 import pygame
 from pygame.locals import (
@@ -150,6 +150,10 @@ def manual_play_pygame_lv1():
 
 def manual_play_pygame_lv2_plus(wumpus_env):
     env = wumpus_env
+
+    if env.random_grid is not None:
+        env.random_grid = True
+
     agent_state = env.reset_env()
 
     # Initialize pygame

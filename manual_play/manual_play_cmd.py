@@ -1,4 +1,4 @@
-from wumpusEnvs.wumpusEnvLv1 import WumpusWorldLv1
+from wumpus_envs.wumpus_env_lv1 import WumpusWorldLv1
 from msvcrt import getch
 import sys
 
