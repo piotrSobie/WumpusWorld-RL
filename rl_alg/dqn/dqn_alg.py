@@ -2,20 +2,21 @@ import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 from itertools import product
 
-from dqn.agent import Agent
-from dqn.utils import plot_learning
-from wumpusEnvs.wumpusEnvLv4 import WumpusWorldLv4
+from rl_alg.dqn.agent import Agent
+from rl_alg.dqn.utils import plot_learning
 
 
 def dqn_algorithm(wumpus_env, batch_size_=64, gamma_=0.999, eps_start_=1, eps_end_=0.01, eps_decay_=5e-5,
                   target_update_=100, memory_size_=100000, lr_=0.001, num_episodes_=500, max_steps_per_episode_=200):
 
-    env = WumpusWorldLv4()
+    env = wumpus_env
     print("dqn start")
+    if env.dqn_observation_state_number is None:
+        raise Exception("Environment not suitable for dqn")
 
     env.reset_env()
     env_action_n = env.action_space_n
-    env_obs_n = 85
+    env_obs_n = env.dqn_observation_state_number
     n_games = num_episodes_
     max_step = max_steps_per_episode_
 
@@ -46,6 +47,7 @@ def dqn_algorithm(wumpus_env, batch_size_=64, gamma_=0.999, eps_start_=1, eps_en
         tb = SummaryWriter(comment=comment)
 
         # learn
+        # in learning i use stable grid (only 1, not random)
         for episode in range(n_games):
             score = 0
             done = False
@@ -65,6 +67,7 @@ def dqn_algorithm(wumpus_env, batch_size_=64, gamma_=0.999, eps_start_=1, eps_en
                 if current_step > max_step:
                     break
 
+                # in the future maybe
                 # to compare loss with different batch_size
                 # total_loss = loss * batch_size
 
@@ -81,11 +84,10 @@ def dqn_algorithm(wumpus_env, batch_size_=64, gamma_=0.999, eps_start_=1, eps_en
                 tb.add_histogram(name, weight, episode)
                 # tb.add_histogram(f"{name}.grad", weight.grad, episode)
 
-            print("works")
             print(f"{loop_nr} in {max_nr_of_loops}")
             print(f"Examined values: {comment}")
             print(
-                f"Episode {episode}, score {score}, average score {avg_score},"
+                f"Episode {episode} in {n_games}, score {score}, average score {avg_score},"
                 f" epsilon {agent.eps_strategy.get_epsilon()}\n")
 
         x = [i + 1 for i in range(n_games)]
@@ -93,6 +95,7 @@ def dqn_algorithm(wumpus_env, batch_size_=64, gamma_=0.999, eps_start_=1, eps_en
         plot_learning(x, scores, eps_history, filename)
 
         # test
+        # in testing i set epsilon to 0 and test on random grids
         agent.eps_strategy.epsilon = 0
         agent.eps_strategy.eps_min = 0
         scores_test, eps_history_test = [], []

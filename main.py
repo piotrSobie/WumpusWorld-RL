@@ -1,14 +1,14 @@
-from wumpusEnvs.wumpusEnvLv1 import WumpusWorldLv1
-from wumpusEnvs.wumpusEnvLv2 import WumpusWorldLv2
-from wumpusEnvs.wumpusEnvLv3v1 import WumpusWorldLv3v1
-from wumpusEnvs.wumpusEnvLv3v2 import WumpusWorldLv3v2
-from wumpusEnvs.wumpusEnvLv3v3 import WumpusWorldLv3v3
-from wumpusEnvs.wumpusEnvLv4 import WumpusWorldLv4
+from wumpus_envs.wumpus_env_lv1 import WumpusWorldLv1
+from wumpus_envs.wumpus_env_lv2 import WumpusWorldLv2
+from wumpus_envs.wumpus_env_lv3v1 import WumpusWorldLv3v1
+from wumpus_envs.wumpus_env_lv3v2 import WumpusWorldLv3v2
+from wumpus_envs.wumpus_env_lv3v3 import WumpusWorldLv3v3
+from wumpus_envs.wumpus_env_lv4 import WumpusWorldLv4
 
-from manualPlay import manual_play_lv1, manual_play_lv2_plus
-from manualPlayPygame import manual_play_pygame_lv1, manual_play_pygame_lv2_plus
-from qLearn import q_learn
-from dqn.dqnAlg import dqn_algorithm
+from manual_play.manual_play_cmd import manual_play_lv1, manual_play_lv2_plus
+from manual_play.manual_play_pygame import manual_play_pygame_lv1, manual_play_pygame_lv2_plus
+from rl_alg.q_learn import q_learn
+from rl_alg.dqn.dqn_alg import dqn_algorithm
 
 import argparse
 import time

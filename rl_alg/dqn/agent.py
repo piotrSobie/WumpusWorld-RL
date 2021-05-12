@@ -1,9 +1,9 @@
 import numpy as np
 import torch as T
 
-from dqn.dqn_network import DeepQNetwork
-from dqn.replay_memory import ReplayMemory
-from dqn.epsilon_greedy_strategy import EpsilonGreedyStrategy
+from rl_alg.dqn.dqn_network import DeepQNetwork
+from rl_alg.dqn.replay_memory import ReplayMemory
+from rl_alg.dqn.epsilon_greedy_strategy import EpsilonGreedyStrategy
 
 
 class Agent:
