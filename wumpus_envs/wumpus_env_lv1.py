@@ -2,9 +2,10 @@ import random
 import numpy as np
 
 
-# 4x4 grid world
+# 4x4 constant grid world
 # agent can take actions (4): go up, down, right, left
 # states (16): each grid represents different state
+# agent doesn't make use of sensors - breeze, smell, glitter, bump, scream
 class WumpusWorldLv1:
     def __init__(self):
         # go up, down, right, left
@@ -23,7 +24,9 @@ class WumpusWorldLv1:
 
         self.dqn_observation_state_number = None
         self.observation_space_n = None
-        self.state_number = None
+        self.state_number = None  # array, size the same as gridworld, it looks like: [[0, 1, 2, 3], ... ,[12,13,14,15]]
+        # i use it to find agent state, different way is state = 4 * agent_pos_y + agent_pos_x, but array way works, so
+        # i didn't change it
         self.grid_world = self.get_new_env()
         self.cave_entry_x = 3
         self.cave_entry_y = 0
@@ -46,7 +49,7 @@ class WumpusWorldLv1:
             self.observation_space_n += len(i)
 
         state_nr = 0
-        self.state_number = np.zeros((len(env), len(env[0])), dtype=int)
+        self.state_number = np.zeros((len(env), len(env[0])), dtype=np.int)
         for i in range(len(self.state_number)):
             for j in range(len(self.state_number[i])):
                 self.state_number[i][j] = state_nr

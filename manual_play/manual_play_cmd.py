@@ -1,5 +1,5 @@
-from wumpusEnvs.wumpusEnvLv1 import WumpusWorldLv1
 import os
+from wumpus_envs.wumpus_env_lv1 import WumpusWorldLv1
 import sys
 if os.name == 'nt':
     from msvcrt import getch

@@ -1,8 +1,7 @@
 import random
-import time
 
 
-# 4x4 grid world
+# 4x4 constant grid world
 # agent can take actions (6): move forward, turn left, turn right, take gold, shoot, climb out of the cave
 # agent can detect stench, breeze, bump (if he is next to end of map) nad their direction, glitter
 # states (32768): agent_x (4) X agent_y (4) X agent's direction (4) X has gold (2) X has arrow (2)
@@ -53,7 +52,7 @@ class WumpusWorldLv3v2:
 
         self.living_reward = -1
         self.arrow_reward = -10
-        self.gold_reward = 1000
+        self.left_with_gold = 1000
         self.death_by_wumpus_reward = -1000
         self.death_by_pit_reward = -1000
 
@@ -208,7 +207,7 @@ class WumpusWorldLv3v2:
         # climb out of the cave
         elif action == 5:
             if (self.agentPosXY[0] == self.cave_entry_x) & (self.agentPosXY[1] == self.cave_entry_y) & (self.gold == 1):
-                reward += 1000
+                reward += self.left_with_gold
                 done = True
                 info = "You left cave with gold, victory"
                 game_won = True

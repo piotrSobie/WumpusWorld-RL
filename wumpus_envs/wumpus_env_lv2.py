@@ -1,9 +1,10 @@
 import random
 
 
-# 4x4 grid world
+# 4x4 constant grid world
 # agent can take actions (6): move forward, turn left, turn right, take gold, shoot, climb out of the cave
 # states (256): position on the grid (16) X agent's direction (4) X has gold (2) X has arrow (2)
+# agent doesn't make use of sensors - breeze, smell, glitter, bump, scream
 class WumpusWorldLv2:
     def __init__(self):
         # move forward, turn left, turn right, take gold, shoot, climb out of the cave
@@ -44,7 +45,7 @@ class WumpusWorldLv2:
 
         self.living_reward = -1
         self.arrow_reward = -10
-        self.gold_reward = 1000
+        self.left_with_gold = 1000
         self.death_by_wumpus_reward = -1000
         self.death_by_pit_reward = -1000
 
@@ -183,11 +184,11 @@ class WumpusWorldLv2:
                         self.grid_world[self.wumpus_pos_x][self.wumpus_pos_y] = self.regular_field
                         reward += self.wumpus_killed_reward
             else:
-                info = "Arrow no available, nothing happened"
+                info = "Arrow not available, nothing happened"
         # climb out of the cave
         elif action == 5:
             if (self.agentPosXY[0] == self.cave_entry_x) & (self.agentPosXY[1] == self.cave_entry_y) & (self.gold == 1):
-                reward += 1000
+                reward += self.left_with_gold
                 done = True
                 info = "You left cave with gold, victory"
                 game_won = True
