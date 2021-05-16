@@ -35,7 +35,10 @@ if __name__ == '__main__':
     target_update = 10
     memory_size = 100000
 
-    time_for_reading_set_parameters = 3
+    # manual mode only:
+    show_world = True
+
+    time_for_reading_set_parameters = 1
 
     parser = argparse.ArgumentParser()
     # required arguments
@@ -53,6 +56,8 @@ if __name__ == '__main__':
     parser.add_argument("--eps_start", help=f"Epsilon starting value, should be in <0, 1>, default={epsilon_start}")
     parser.add_argument("--eps_decay", help=f"Epsilon decay rate, default={epsilon_decay}")
     parser.add_argument("--eps_min", help=f"Epsilon min, should be in <0, 1>, default={epsilon_min}")
+    parser.add_argument("--show_world", help=f"Whether to show the actual world in manual pygame mode, or not."
+                        "Useful to recon the difficulty of the problem, default={show_world}")
     parser.add_argument("--show_actions_plot", help=f"Show plot with number of actions, default={show_actions_plot}")
     parser.add_argument("--show_reward_plot", help=f"Show plot with rewards, default={show_reward_plot}")
     parser.add_argument("--show_games_won_plot", help=f"Show plot with games won, default={show_games_won_plot}")
@@ -133,6 +138,14 @@ if __name__ == '__main__':
         else:
             show_learned_path = bool(int(args.show_learned_path))
 
+    if args.show_world is not None:
+        if args.show_world.lower() == "true":
+            show_world = True
+        elif args.show_world.lower() == "false":
+            show_world = False
+        else:
+            show_world = bool(int(args.show_world))
+
     if args.batch_size is not None:
         batch_size = int(args.batch_size)
 
@@ -180,7 +193,7 @@ if __name__ == '__main__':
         if args.env == "lv1":
             manual_play_pygame_lv1()
         else:
-            manual_play_pygame_lv2_plus(examined_env)
+            manual_play_pygame_lv2_plus(examined_env, show_world)
     elif mode == "manual-cmd":
         if args.env == "lv1":
             manual_play_lv1()

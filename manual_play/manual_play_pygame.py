@@ -24,37 +24,38 @@ blue = (0, 128, 255)
 green = (0, 153, 0)
 
 
-def draw_grid_world(env, screen, gold_img, wumpus_img, pit_img, agent_img, cave_entry,
-                    field_size_x, field_size_y, text, font):
+def draw_game_window(env, screen, gold_img, wumpus_img, pit_img, agent_img, cave_entry,
+                     field_size_x, field_size_y, text, font, show_world=True):
     screen.fill(white)
 
-    for i in range(len(env.grid_world)):
-        for j in range(len(env.grid_world[i])):
-            if env.grid_world[i][j] == env.regular_field:
-                pygame.draw.rect(screen, brown, pygame.Rect(j * field_size_x, i * field_size_y,
-                                                            field_size_x, field_size_y))
-            elif env.grid_world[i][j] == env.visited_field:
-                pygame.draw.rect(screen, green, pygame.Rect(j * field_size_x, i * field_size_y,
-                                                            field_size_x, field_size_y))
-            elif env.grid_world[i][j] == env.gold_field:
-                screen.blit(gold_img, (j * field_size_x, i * field_size_y,
-                                       field_size_x, field_size_y))
-            elif env.grid_world[i][j] == env.wumpus_field:
-                pygame.draw.rect(screen, red, pygame.Rect(j * field_size_x, i * field_size_y,
-                                                          field_size_x, field_size_y))
-                screen.blit(wumpus_img, (j * field_size_x, i * field_size_y,
-                                         field_size_x, field_size_y))
-            elif env.grid_world[i][j] == env.pit_field:
-                screen.blit(pit_img, (j * field_size_x, i * field_size_y, field_size_x, field_size_y))
+    if show_world:
+        for i in range(len(env.grid_world)):
+            for j in range(len(env.grid_world[i])):
+                if env.grid_world[i][j] == env.regular_field:
+                    pygame.draw.rect(screen, brown, pygame.Rect(j * field_size_x, i * field_size_y,
+                                                                field_size_x, field_size_y))
+                elif env.grid_world[i][j] == env.visited_field:
+                    pygame.draw.rect(screen, green, pygame.Rect(j * field_size_x, i * field_size_y,
+                                                                field_size_x, field_size_y))
+                elif env.grid_world[i][j] == env.gold_field:
+                    screen.blit(gold_img, (j * field_size_x, i * field_size_y,
+                                           field_size_x, field_size_y))
+                elif env.grid_world[i][j] == env.wumpus_field:
+                    pygame.draw.rect(screen, red, pygame.Rect(j * field_size_x, i * field_size_y,
+                                                              field_size_x, field_size_y))
+                    screen.blit(wumpus_img, (j * field_size_x, i * field_size_y,
+                                             field_size_x, field_size_y))
+                elif env.grid_world[i][j] == env.pit_field:
+                    screen.blit(pit_img, (j * field_size_x, i * field_size_y, field_size_x, field_size_y))
 
-            if (i == env.cave_entry_x) & (j == env.cave_entry_y):
-                screen.blit(cave_entry, (j * field_size_x, i * field_size_y, field_size_x, field_size_y))
+                if (i == env.cave_entry_x) & (j == env.cave_entry_y):
+                    screen.blit(cave_entry, (j * field_size_x, i * field_size_y, field_size_x, field_size_y))
 
-            if (i == env.agentPosXY[0]) & (j == env.agentPosXY[1]):
-                screen.blit(agent_img, (j * field_size_x, i * field_size_y, field_size_x, field_size_y))
+                if (i == env.agentPosXY[0]) & (j == env.agentPosXY[1]):
+                    screen.blit(agent_img, (j * field_size_x, i * field_size_y, field_size_x, field_size_y))
 
-            pygame.draw.rect(screen, blue, pygame.Rect(j * field_size_x, i * field_size_y,
-                                                       field_size_x, field_size_y), 5)
+                pygame.draw.rect(screen, blue, pygame.Rect(j * field_size_x, i * field_size_y,
+                                                           field_size_x, field_size_y), 5)
 
     for t in range(len(text)):
         msg = font.render(text[t], False, black)
@@ -103,8 +104,8 @@ def manual_play_pygame_lv1():
 
     msg = instruction_string + [f"Agent state: {agent_state}"]
 
-    draw_grid_world(env, screen, gold_img, wumpus_img, pit_img, agent_img, cave_entry_img,
-                    field_size_x, field_size_y, msg, my_font)
+    draw_game_window(env, screen, gold_img, wumpus_img, pit_img, agent_img, cave_entry_img,
+                     field_size_x, field_size_y, msg, my_font)
 
     running = True
     total_reward = 0
@@ -142,16 +143,16 @@ def manual_play_pygame_lv1():
                     msg += [i]
             if done:
                 msg += ["", "Game ended", "Press any key to leave"]
-            draw_grid_world(env, screen, gold_img, wumpus_img, pit_img, agent_img, cave_entry_img,
-                            field_size_x, field_size_y, msg, my_font)
+            draw_game_window(env, screen, gold_img, wumpus_img, pit_img, agent_img, cave_entry_img,
+                             field_size_x, field_size_y, msg, my_font)
 
     return
 
 
-def manual_play_pygame_lv2_plus(wumpus_env):
+def manual_play_pygame_lv2_plus(wumpus_env, show_world=True):
     env = wumpus_env
 
-    if env.random_grid is not None:
+    if hasattr(env, 'random_grid'):
         env.random_grid = True
 
     agent_state = env.reset_env()
@@ -217,8 +218,8 @@ def manual_play_pygame_lv2_plus(wumpus_env):
     elif env.agent_direction == 3:
         agent = agent_img_left
 
-    draw_grid_world(env, screen, gold_img, wumpus_img, pit_img, agent, cave_entry_img,
-                    field_size_x, field_size_y, msg, my_font)
+    draw_game_window(env, screen, gold_img, wumpus_img, pit_img, agent, cave_entry_img,
+                     field_size_x, field_size_y, msg, my_font, show_world=show_world)
 
     running = True
     total_reward = 0
@@ -260,6 +261,7 @@ def manual_play_pygame_lv2_plus(wumpus_env):
 
             if done:
                 msg += ["", "Game ended", "Press any key to leave"]
+                show_world = True
 
             agent = None
             # up
@@ -275,7 +277,7 @@ def manual_play_pygame_lv2_plus(wumpus_env):
             elif env.agent_direction == 3:
                 agent = agent_img_left
 
-            draw_grid_world(env, screen, gold_img, wumpus_img, pit_img, agent, cave_entry_img,
-                            field_size_x, field_size_y, msg, my_font)
+            draw_game_window(env, screen, gold_img, wumpus_img, pit_img, agent, cave_entry_img,
+                             field_size_x, field_size_y, msg, my_font, show_world=show_world)
 
     return
