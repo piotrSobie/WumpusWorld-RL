@@ -7,8 +7,8 @@ from rl_alg.dqn.epsilon_greedy_strategy import EpsilonGreedyStrategy
 
 
 class Agent:
-    def __init__(self, gamma, epsilon, lr, input_dims, batch_size, n_actions,
-                 max_mem_size=100000, eps_end=0.01, eps_dec=5e-4, replace_target=100):
+    def __init__(self, input_dims, n_actions, gamma=0.99, epsilon=1.0, lr=0.01, batch_size=64,
+                 max_mem_size=100000, eps_end=0.01, eps_dec=5e-4, replace_target=100, loaded_state=None):
         self.gamma = gamma
         self.lr = lr
         self.action_space = [i for i in range(n_actions)]
@@ -25,8 +25,22 @@ class Agent:
         self.memory = ReplayMemory(max_mem_size, input_dims)
         self.eps_strategy = EpsilonGreedyStrategy(epsilon, eps_end, eps_dec)
 
+        # load data
+        if loaded_state is not None:
+            self.gamma = loaded_state['gamma']
+            self.eps_strategy = loaded_state['epsilon_strategy']
+            self.batch_size = loaded_state['batch_size']
+            self.lr = loaded_state['lr']
+            self.replace_target = loaded_state['replace_target']
+            self.memory = loaded_state['replay_memory']
+
+            self.Q_eval.load_state_dict(loaded_state['state_dict'])
+            self.Q_next.load_state_dict(loaded_state['state_dict'])
+            self.Q_next.eval()
+            self.Q_eval.optimizer.load_state_dict(loaded_state['optimizer'])
+
     def choose_action(self, observation):
-        if np.random.random() > self.eps_strategy.get_epsilon():
+        if np.random.random() >= self.eps_strategy.get_epsilon():
             state = T.tensor([observation]).to(self.Q_eval.device)
             actions = self.Q_eval.forward(state)
             action = T.argmax(actions).item()

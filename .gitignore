@@ -3,3 +3,4 @@ __pycache__/
 rl_alg/dqn/__pycache__/
 wumpus_envs/__pycache__/
 runs/
+saved_models/
