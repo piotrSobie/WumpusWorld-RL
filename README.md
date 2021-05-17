@@ -11,13 +11,12 @@ More help: https://pytorch.org
 
 # Usage
 <pre>
-python main.py [-h] --env ENV --mode MODE [--num_episodes NUM_EPISODES]
-               [--max_steps_per_episode MAX_STEPS_PER_EPISODE] [--lr LR] [--discount DISCOUNT]
-               [--eps_start EPS_START] [--eps_decay EPS_DECAY] [--eps_min EPS_MIN]
+python main.py [-h] --env ENV --mode MODE [--num_episodes NUM_EPISODES] [--max_steps_per_episode MAX_STEPS_PER_EPISODE]
+               [--lr LR] [--discount DISCOUNT] [--eps_start EPS_START] [--eps_decay EPS_DECAY] [--eps_min EPS_MIN]
                [--show_actions_plot SHOW_ACTIONS_PLOT] [--show_reward_plot SHOW_REWARD_PLOT]
-               [--show_games_won_plot SHOW_GAMES_WON_PLOT] [--show_learned_path SHOW_LEARNED_PATH]
-               [--batch_size BATCH_SIZE] [--target_update TARGET_UPDATE]
-               [--memory_size MEMORY_SIZE]  
+               [--show_games_won_plot SHOW_GAMES_WON_PLOT] [--show_learned_path SHOW_LEARNED_PATH] [--batch_size BATCH_SIZE]
+               [--target_update TARGET_UPDATE] [--memory_size MEMORY_SIZE] [--state_path STATE_PATH]
+               [--save_every SAVE_EVERY]
                
                
 optional arguments:
@@ -36,9 +35,13 @@ optional arguments:
   --batch_size BATCH_SIZE                       Used in DQN replay memory, default=256  
   --target_update TARGET_UPDATE                 Used in DQN, tells how often target network should be
                                                 updated, default=10  
-  --memory_size MEMORY_SIZE                     Used in DQN, set replay memory size, default=100000  
+  --memory_size MEMORY_SIZE                     Used in DQN, set replay memory size, default=100000
+  --state_path STATE_PATH                       Loading state from /saved_models/PATH, PATH must be specified, saved in save_models/DATA_START/
+                                                specify WITHOUT save_models
+  --save_every SAVE_EVERY                       Saving checkpoint at specified frequency, default=50
 
 required named arguments:  
   --env ENV             Required, choose environment, possible values: lv1, lv2, lv3v1, lv3v2, lv3v3, lv4  
-  --mode MODE           Required, choose mode, possible values: manual, manual-cmd, q-learn, dqn  
+  --mode MODE           Required, choose mode, possible values: manual, manual-cmd q-learn, dqn, test (with test
+                        --state_path must be specified)
 </pre>

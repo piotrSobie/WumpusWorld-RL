@@ -9,9 +9,11 @@ from manual_play.manual_play_cmd import manual_play_lv1, manual_play_lv2_plus
 from manual_play.manual_play_pygame import manual_play_pygame_lv1, manual_play_pygame_lv2_plus
 from rl_alg.q_learn import q_learn
 from rl_alg.dqn.dqn_alg import dqn_algorithm
+from rl_alg.dqn.test_agent import test_agent_dqn
 
 import argparse
 import time
+import sys
 
 if __name__ == '__main__':
     # default values
@@ -20,11 +22,15 @@ if __name__ == '__main__':
     mode = None
     num_episodes = 10000
     max_steps_per_episode = 100
-    learning_rate = 0.1
-    discount_rate = 0.9
+    learning_rate = 0.01
+    discount_rate = 0.99
     epsilon_start = 1
     epsilon_decay = 0.001
     epsilon_min = 0.01
+
+    state_path = None
+    save_every = 50
+
     # q-learn only
     show_actions_plot = True
     show_reward_plot = True
@@ -45,8 +51,8 @@ if __name__ == '__main__':
     required_args = parser.add_argument_group("required named arguments")
     required_args.add_argument("--env", help="Required, choose environment, possible values:"
                                       " lv1, lv2, lv3v1, lv3v2, lv3v3, lv4", required=True)
-    required_args.add_argument("--mode", help="Required, choose mode, possible values: manual, manual-cmd q-learn, dqn",
-                               required=True)
+    required_args.add_argument("--mode", help="Required, choose mode, possible values: manual, manual-cmd q-learn, "
+                                              "dqn, test (with test --state_path must be specified)", required=True)
     # optional arguments
     parser.add_argument("--num_episodes", help=f"Number of learning episodes, default={num_episodes}")
     parser.add_argument("--max_steps_per_episode", help=f"Maximum number of steps per episode, "
@@ -66,6 +72,8 @@ if __name__ == '__main__':
     parser.add_argument("--target_update", help=f"Used in DQN, tells how often target network should be updated, "
                                                 f"default={target_update}")
     parser.add_argument("--memory_size", help=f"Used in DQN, set replay memory size, default={memory_size}")
+    parser.add_argument("--state_path", help=f"Loading state from /saved_models/PATH, PATH must be specified")
+    parser.add_argument("--save_every", help=f"Saving checkpoint at specified frequency, default={save_every}")
 
     args = parser.parse_args()
     exception_msg = "Invalid environment, try python main.py --help"
@@ -155,6 +163,9 @@ if __name__ == '__main__':
     if args.memory_size is not None:
         memory_size = int(args.memory_size)
 
+    if args.save_every is not None:
+        save_every = float(args.save_every)
+
     if args.mode == "manual":
         mode = "manual"
     elif args.mode == "manual-cmd":
@@ -163,6 +174,8 @@ if __name__ == '__main__':
         mode = "q-learn"
     elif args.mode == "dqn":
         mode = "dqn"
+    elif args.mode == "test":
+        mode = "test"
     else:
         raise Exception(exception_msg)
 
@@ -186,6 +199,12 @@ if __name__ == '__main__':
     print(f"Batch size: {batch_size}")
     print(f"Target update: {target_update}")
     print(f"Memory size: {memory_size}")
+    if args.state_path is not None:
+        state_path = args.state_path
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        print("Loading data from PATH. Above variables will not be used!")
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+    print(f"Load state path: {state_path}")
     print(f"\nWaiting {time_for_reading_set_parameters} seconds...")
     time.sleep(time_for_reading_set_parameters)
 
@@ -210,17 +229,13 @@ if __name__ == '__main__':
         dqn_algorithm(examined_env, batch_size_=batch_size, gamma_=discount_rate, eps_start_=epsilon_start,
                       eps_end_=epsilon_min, eps_decay_=epsilon_decay, target_update_=target_update,
                       memory_size_=memory_size, lr_=learning_rate, num_episodes_=num_episodes,
-                      max_steps_per_episode_=max_steps_per_episode)
+                      max_steps_per_episode_=max_steps_per_episode, save_weights_every_=save_every,
+                      load_state_path=state_path)
+    elif mode == "test":
+        if state_path is None:
+            print("State path must be specified in this mode")
+            sys.exit()
 
-    # manual_play_lv1()
+        test_agent_dqn(examined_env, load_state_path=state_path)
 
-    # examined_env = WumpusWorldLv1()
-    # examined_env = WumpusWorldLv2()
-    # examined_env = WumpusWorldLv3v1()
-    # examined_env = WumpusWorldLv3v2()
-    # examined_env = WumpusWorldLv3v3()
-    # examined_env = WumpusWorldLv4()
 
-    # manual_play_lv2_plus(examined_env)
-    # q_learn(examined_env, show_learned_path=False)
-    # dqn_algorithm(examined_env)
