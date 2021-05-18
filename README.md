@@ -39,6 +39,7 @@ optional arguments:
   --state_path STATE_PATH                       Loading state from /saved_models/PATH, PATH must be specified, saved in save_models/DATA_START/
                                                 specify WITHOUT save_models
   --save_every SAVE_EVERY                       Saving checkpoint at specified frequency, default=50
+  --show_whole_map SHOW_WHOLE_MAP               Show whole map in manual play, default=False
 
 required named arguments:  
   --env ENV             Required, choose environment, possible values: lv1, lv2, lv3v1, lv3v2, lv3v3, lv4  
