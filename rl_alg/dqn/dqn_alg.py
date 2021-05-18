@@ -5,7 +5,7 @@ from itertools import product
 import datetime
 import os
 
-from rl_alg.dqn.agent import Agent
+from rl_alg.dqn.dqn_agent import Agent
 from rl_alg.dqn.utils import plot_learning
 
 
@@ -74,7 +74,6 @@ def dqn_algorithm(wumpus_env, batch_size_=64, gamma_=0.999, eps_start_=1, eps_en
         best_avg_score = None
 
         # learn
-        # in learning i use stable grid (only 1, not random)
         comment = f"learning, batch_size={batch_size}, lr={lr}, random_grid={env.random_grid}"
         tb_train = SummaryWriter(comment=comment)
         for episode in range(start_episode, n_games):

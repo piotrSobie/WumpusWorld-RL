@@ -6,7 +6,7 @@ from wumpus_envs.wumpus_env_lv3v3 import WumpusWorldLv3v3
 from wumpus_envs.wumpus_env_lv4 import WumpusWorldLv4
 
 from manual_play.manual_play_cmd import manual_play_lv1, manual_play_lv2_plus
-from manual_play.manual_play_pygame import manual_play_pygame_lv1, manual_play_pygame_lv2_plus
+from manual_play.manual_play_pygame import main_pygame
 from rl_alg.q_learn import q_learn
 from rl_alg.dqn.dqn_alg import dqn_algorithm
 from rl_alg.dqn.test_agent import test_agent_dqn
@@ -27,6 +27,7 @@ if __name__ == '__main__':
     epsilon_start = 1
     epsilon_decay = 0.001
     epsilon_min = 0.01
+    random_grid = True
 
     state_path = None
     save_every = 50
@@ -52,7 +53,8 @@ if __name__ == '__main__':
     required_args.add_argument("--env", help="Required, choose environment, possible values:"
                                       " lv1, lv2, lv3v1, lv3v2, lv3v3, lv4", required=True)
     required_args.add_argument("--mode", help="Required, choose mode, possible values: manual, manual-cmd q-learn, "
-                                              "dqn, test (with test --state_path must be specified)", required=True)
+                                              "dqn, test (with test --state_path must be specified),"
+                                              "test-gui", required=True)
     # optional arguments
     parser.add_argument("--num_episodes", help=f"Number of learning episodes, default={num_episodes}")
     parser.add_argument("--max_steps_per_episode", help=f"Maximum number of steps per episode, "
@@ -74,6 +76,7 @@ if __name__ == '__main__':
     parser.add_argument("--memory_size", help=f"Used in DQN, set replay memory size, default={memory_size}")
     parser.add_argument("--state_path", help=f"Loading state from /saved_models/PATH, PATH must be specified")
     parser.add_argument("--save_every", help=f"Saving checkpoint at specified frequency, default={save_every}")
+    parser.add_argument("--random_grid", help=f"Whether the world is random or constant, default={random_grid}")
 
     args = parser.parse_args()
     exception_msg = "Invalid environment, try python main.py --help"
@@ -154,6 +157,16 @@ if __name__ == '__main__':
         else:
             show_world = bool(int(args.show_world))
 
+    if args.random_grid is not None:
+        if args.random_grid.lower() == "true":
+            random_grid = True
+        elif args.random_grid.lower() == "false":
+            random_grid = False
+        else:
+            random_grid = bool(int(args.random_grid))
+
+    examined_env.random_grid = random_grid
+
     if args.batch_size is not None:
         batch_size = int(args.batch_size)
 
@@ -176,12 +189,15 @@ if __name__ == '__main__':
         mode = "dqn"
     elif args.mode == "test":
         mode = "test"
+    elif args.mode == "test-gui":
+        mode = "test-gui"
     else:
         raise Exception(exception_msg)
 
     print("\nStarting with following parameters:")
     print("\nQ-learning & DQN parameters:")
     print(f"Env name: {examined_env.__class__.__name__}")
+    print(f"Grid randomness {examined_env.random_grid}")
     print(f"Mode: {mode}")
     print(f"Num episodes: {num_episodes}")
     print(f"Max steps per episodes: {max_steps_per_episode}")
@@ -210,9 +226,9 @@ if __name__ == '__main__':
 
     if mode == "manual":
         if args.env == "lv1":
-            manual_play_pygame_lv1()
+            raise NotImplementedError
         else:
-            manual_play_pygame_lv2_plus(examined_env, show_world)
+            main_pygame(examined_env, 'manual', show_world)
     elif mode == "manual-cmd":
         if args.env == "lv1":
             manual_play_lv1()
@@ -231,11 +247,12 @@ if __name__ == '__main__':
                       memory_size_=memory_size, lr_=learning_rate, num_episodes_=num_episodes,
                       max_steps_per_episode_=max_steps_per_episode, save_weights_every_=save_every,
                       load_state_path=state_path)
-    elif mode == "test":
+    elif mode == "test" or mode == "test-gui":
         if state_path is None:
             print("State path must be specified in this mode")
             sys.exit()
 
-        test_agent_dqn(examined_env, load_state_path=state_path)
-
-
+        if mode == "test":
+            test_agent_dqn(examined_env, load_state_path=state_path)
+        else:
+            NotImplementedError()

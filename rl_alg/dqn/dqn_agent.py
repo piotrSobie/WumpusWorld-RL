@@ -1,12 +1,13 @@
 import numpy as np
 import torch as T
 
+from agent import Agent
 from rl_alg.dqn.dqn_network import DeepQNetwork
 from rl_alg.dqn.replay_memory import ReplayMemory
 from rl_alg.dqn.epsilon_greedy_strategy import EpsilonGreedyStrategy
 
 
-class Agent:
+class DQNAgent(Agent):
     def __init__(self, input_dims, n_actions, gamma=0.99, epsilon=1.0, lr=0.01, batch_size=64,
                  max_mem_size=100000, eps_end=0.01, eps_dec=5e-4, replace_target=100, loaded_state=None):
         self.gamma = gamma

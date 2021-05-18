@@ -148,8 +148,10 @@ class WumpusWorldLv4:
 
     def get_new_env(self):
         if self.random_grid:
+            print("New RANDOM grid")
             env = self.get_random_env()
         else:
+            print("New STABLE grid")
             env = self.get_stable_env()
 
         # states(86) = array with 0 or 1: [direction(2) + bump(1) + scream(1) + if room visited(16) + stench(16)

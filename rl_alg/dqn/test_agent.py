@@ -2,11 +2,11 @@ import torch as T
 from torch.utils.tensorboard import SummaryWriter
 import numpy as np
 
-from rl_alg.dqn.agent import Agent
+from rl_alg.dqn.dqn_agent import Agent
 from rl_alg.dqn.utils import plot_learning
 
 
-def test_agent_dqn(wumpus_env, load_state_path):
+def test_agent_dqn(wumpus_env, load_state_path, random_grid=True):
     env = wumpus_env
 
     if env.dqn_observation_state_number is None:
@@ -26,7 +26,7 @@ def test_agent_dqn(wumpus_env, load_state_path):
     agent.eps_strategy.eps_min = 0
     scores_test, eps_history_test = [], []
     n_games = 100
-    env.random_grid = True
+    env.random_grid = random_grid
     comment = f"testing, batch_size={agent.batch_size}, lr={agent.lr}, random_grid={env.random_grid}"
     tb_test = SummaryWriter(comment=comment)
     #
