@@ -8,4 +8,7 @@ class EpsilonGreedyStrategy:
         return self.epsilon
 
     def update_epsilon(self):
-        self.epsilon = self.epsilon - self.eps_dec if self.epsilon > self.eps_min else self.eps_min
+        if self.epsilon > self.eps_min:
+            self.epsilon = self.epsilon - self.eps_dec
+        else:
+            self.epsilon = self.eps_min

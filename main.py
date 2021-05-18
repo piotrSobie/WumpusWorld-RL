@@ -10,6 +10,7 @@ from gui.main_pygame import main_pygame
 from rl_alg.q_learn import q_learn
 from rl_alg.dqn.dqn_alg import dqn_algorithm
 from rl_alg.dqn.test_agent import test_agent_dqn
+from rl_alg.dqn.dqn_default_params import DqnDefaultParams
 
 import argparse
 import time
@@ -17,33 +18,36 @@ import sys
 
 if __name__ == '__main__':
     # default values
+    default_params = DqnDefaultParams()
+
     # q-learn & dqn hyper parameters
     examined_env = None
     mode = None
-    num_episodes = 10000
-    max_steps_per_episode = 100
-    learning_rate = 0.01
-    discount_rate = 0.99
-    epsilon_start = 1
-    epsilon_decay = 0.001
-    epsilon_min = 0.01
     random_grid = True
 
-    state_path = None
-    save_every = 50
+    num_episodes = default_params.NUM_EPISODES
+    max_steps_per_episode = default_params.MAX_STEPS_PER_EPISODE
+    learning_rate = default_params.LEARNING_RATE
+    discount_rate = default_params.DISCOUNT_RATE
+    epsilon_start = default_params.EPSILON_START
+    epsilon_decay = default_params.EPSILON_DECAY
+    epsilon_min = default_params.EPSILON_MIN
 
     # q-learn only
     show_actions_plot = True
     show_reward_plot = True
     show_games_won_plot = True
     show_learned_path = True
-    # dqn only
-    batch_size = 256
-    target_update = 10
-    memory_size = 100000
 
-    # manual mode only:
-    show_world = True
+    # dqn only
+    batch_size = default_params.BATCH_SIZE
+    target_update = default_params.TARGET_UPDATE
+    memory_size = default_params.MEMORY_SIZE
+    save_every = default_params.SAVE_EVERY
+    state_path = None
+
+    # gui only
+    show_whole_map = False
 
     time_for_reading_set_parameters = 1
 
@@ -64,8 +68,7 @@ if __name__ == '__main__':
     parser.add_argument("--eps_start", help=f"Epsilon starting value, should be in <0, 1>, default={epsilon_start}")
     parser.add_argument("--eps_decay", help=f"Epsilon decay rate, default={epsilon_decay}")
     parser.add_argument("--eps_min", help=f"Epsilon min, should be in <0, 1>, default={epsilon_min}")
-    parser.add_argument("--show_world", help=f"Whether to show the actual world in manual pygame mode, or not."
-                        "Useful to recon the difficulty of the problem, default={show_world}")
+    parser.add_argument("--show_whole_map", help=f"Show whole map in manual play, default={show_whole_map}")
     parser.add_argument("--show_actions_plot", help=f"Show plot with number of actions, default={show_actions_plot}")
     parser.add_argument("--show_reward_plot", help=f"Show plot with rewards, default={show_reward_plot}")
     parser.add_argument("--show_games_won_plot", help=f"Show plot with games won, default={show_games_won_plot}")
@@ -96,26 +99,17 @@ if __name__ == '__main__':
     else:
         raise Exception(exception_msg)
 
-    if args.num_episodes is not None:
-        num_episodes = int(args.num_episodes)
-
-    if args.max_steps_per_episode is not None:
-        max_steps_per_episode = int(args.max_steps_per_episode)
-
-    if args.lr is not None:
-        learning_rate = float(args.lr)
-
-    if args.discount is not None:
-        discount_rate = float(args.discount)
-
-    if args.eps_start is not None:
-        epsilon_start = float(args.eps_start)
-
-    if args.eps_decay is not None:
-        epsilon_decay = float(args.eps_decay)
-
-    if args.eps_min is not None:
-        epsilon_min = float(args.eps_min)
+    num_episodes = args.num_episodes
+    max_steps_per_episode = args.max_steps_per_episode
+    learning_rate = args.lr
+    discount_rate = args.discount
+    epsilon_start = args.eps_start
+    epsilon_decay = args.eps_decay
+    epsilon_min = args.eps_min
+    batch_size = args.batch_size
+    target_update = args.target_update
+    memory_size = args.memory_size
+    save_every = args.save_every
 
     if args.show_actions_plot is not None:
         if args.show_actions_plot.lower() == "true":
@@ -149,14 +143,6 @@ if __name__ == '__main__':
         else:
             show_learned_path = bool(int(args.show_learned_path))
 
-    if args.show_world is not None:
-        if args.show_world.lower() == "true":
-            show_world = True
-        elif args.show_world.lower() == "false":
-            show_world = False
-        else:
-            show_world = bool(int(args.show_world))
-
     if args.random_grid is not None:
         if args.random_grid.lower() == "true":
             random_grid = True
@@ -179,6 +165,14 @@ if __name__ == '__main__':
     if args.save_every is not None:
         save_every = float(args.save_every)
 
+    if args.show_whole_map is not None:
+        if args.show_whole_map.lower() == "true":
+            show_whole_map = True
+        elif args.show_whole_map.lower() == "false":
+            show_whole_map = False
+        else:
+            show_whole_map = bool(int(args.show_learned_path))
+
     if args.mode == "manual":
         mode = "manual"
     elif args.mode == "manual-cmd":
@@ -194,7 +188,7 @@ if __name__ == '__main__':
     else:
         raise Exception(exception_msg)
 
-    print("\nStarting with following parameters:")
+    print("\nSet parameters:")
     print("\nQ-learning & DQN parameters:")
     print(f"Env name: {examined_env.__class__.__name__}")
     print(f"Grid randomness {examined_env.random_grid}")
@@ -217,9 +211,6 @@ if __name__ == '__main__':
     print(f"Memory size: {memory_size}")
     if args.state_path is not None:
         state_path = args.state_path
-        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        print("Loading data from PATH. Above variables will not be used!")
-        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
     print(f"Load state path: {state_path}")
     print(f"\nWaiting {time_for_reading_set_parameters} seconds...")
     time.sleep(time_for_reading_set_parameters)
@@ -228,7 +219,7 @@ if __name__ == '__main__':
         if args.env == "lv1":
             raise NotImplementedError
         else:
-            main_pygame(examined_env, 'manual', show_world)
+            main_pygame(examined_env, 'manual', show_whole_map)
     elif mode == "manual-cmd":
         if args.env == "lv1":
             manual_play_lv1()

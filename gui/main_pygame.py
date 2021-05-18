@@ -20,48 +20,55 @@ SCREEN_WIDTH = 1000
 SCREEN_HEIGHT = 600
 
 
-def draw_game_window(env, screen, assets, text, show_world=True):
+def draw_game_window(env, screen, assets, text, visited, sensed):
 
     screen.fill(white)
 
-    if show_world:
-        agent_img = None
-        if env.agent_direction == 0:
-            agent_img = assets['agent_up']
-        elif env.agent_direction == 1:
-            agent_img = assets['agent_right']
-        elif env.agent_direction == 2:
-            agent_img = assets['agent_down']
-        elif env.agent_direction == 3:
-            agent_img = assets['agent_left']
+    agent_img = None
+    if env.agent_direction == 0:
+        agent_img = assets['agent_up']
+    elif env.agent_direction == 1:
+        agent_img = assets['agent_right']
+    elif env.agent_direction == 2:
+        agent_img = assets['agent_down']
+    elif env.agent_direction == 3:
+        agent_img = assets['agent_left']
 
-        for i in range(len(env.grid_world)):
-            for j in range(len(env.grid_world[i])):
-                if env.grid_world[i][j] == env.regular_field:
-                    pygame.draw.rect(screen, brown, pygame.Rect(j * FIELD_SIZE_X, i * FIELD_SIZE_Y,
-                                                                FIELD_SIZE_X, FIELD_SIZE_Y))
-                elif env.grid_world[i][j] == env.visited_field:
-                    pygame.draw.rect(screen, green, pygame.Rect(j * FIELD_SIZE_X, i * FIELD_SIZE_Y,
-                                                                FIELD_SIZE_X, FIELD_SIZE_Y))
-                elif env.grid_world[i][j] == env.gold_field:
-                    screen.blit(assets['gold'], (j * FIELD_SIZE_X, i * FIELD_SIZE_Y,
-                                           FIELD_SIZE_X, FIELD_SIZE_Y))
-                elif env.grid_world[i][j] == env.wumpus_field:
-                    pygame.draw.rect(screen, red, pygame.Rect(j * FIELD_SIZE_X, i * FIELD_SIZE_Y,
-                                                              FIELD_SIZE_X, FIELD_SIZE_Y))
-                    screen.blit(assets['wumpus'], (j * FIELD_SIZE_X, i * FIELD_SIZE_Y,
+    for i in range(len(env.grid_world)):
+        for j in range(len(env.grid_world[i])):
+            if env.grid_world[i][j] == env.regular_field:
+                pygame.draw.rect(screen, brown, pygame.Rect(j * FIELD_SIZE_X, i * FIELD_SIZE_Y,
+                                                            FIELD_SIZE_X, FIELD_SIZE_Y))
+            elif env.grid_world[i][j] == env.visited_field:
+                pygame.draw.rect(screen, green, pygame.Rect(j * FIELD_SIZE_X, i * FIELD_SIZE_Y,
+                                                            FIELD_SIZE_X, FIELD_SIZE_Y))
+            elif env.grid_world[i][j] == env.gold_field:
+                screen.blit(assets['gold'], (j * FIELD_SIZE_X, i * FIELD_SIZE_Y,
                                              FIELD_SIZE_X, FIELD_SIZE_Y))
-                elif env.grid_world[i][j] == env.pit_field:
-                    screen.blit(assets['pit'], (j * FIELD_SIZE_X, i * FIELD_SIZE_Y, FIELD_SIZE_X, FIELD_SIZE_Y))
+            elif env.grid_world[i][j] == env.wumpus_field:
+                pygame.draw.rect(screen, red, pygame.Rect(j * FIELD_SIZE_X, i * FIELD_SIZE_Y,
+                                                          FIELD_SIZE_X, FIELD_SIZE_Y))
+                screen.blit(assets['wumpus'], (j * FIELD_SIZE_X, i * FIELD_SIZE_Y,
+                                         FIELD_SIZE_X, FIELD_SIZE_Y))
+            elif env.grid_world[i][j] == env.pit_field:
+                screen.blit(assets['pit'], (j * FIELD_SIZE_X, i * FIELD_SIZE_Y, FIELD_SIZE_X, FIELD_SIZE_Y))
 
-                if (i == env.cave_entry_x) & (j == env.cave_entry_y):
-                    screen.blit(assets['cave_entry'], (j * FIELD_SIZE_X, i * FIELD_SIZE_Y, FIELD_SIZE_X, FIELD_SIZE_Y))
+            if (i == env.cave_entry_x) & (j == env.cave_entry_y):
+                screen.blit(assets['cave_entry'], (j * FIELD_SIZE_X, i * FIELD_SIZE_Y, FIELD_SIZE_X, FIELD_SIZE_Y))
 
-                if (i == env.agentPosXY[0]) & (j == env.agentPosXY[1]):
-                    screen.blit(agent_img, (j * FIELD_SIZE_X, i * FIELD_SIZE_Y, FIELD_SIZE_X, FIELD_SIZE_Y))
+            if (i == env.agentPosXY[0]) & (j == env.agentPosXY[1]):
+                screen.blit(agent_img, (j * FIELD_SIZE_X, i * FIELD_SIZE_Y, FIELD_SIZE_X, FIELD_SIZE_Y))
 
-                pygame.draw.rect(screen, blue, pygame.Rect(j * FIELD_SIZE_X, i * FIELD_SIZE_Y,
-                                                           FIELD_SIZE_X, FIELD_SIZE_Y), 5)
+            if visited[i][j] == 0:
+                pygame.draw.rect(screen, white, pygame.Rect(j * FIELD_SIZE_X, i * FIELD_SIZE_Y,
+                                                            FIELD_SIZE_X, FIELD_SIZE_Y))
+
+            if (len(sensed) > 0) & (i == env.agentPosXY[0]) & (j == env.agentPosXY[1]):
+                my_sensor_text = assets['font'].render(sensed, False, black)
+                screen.blit(my_sensor_text, (j * FIELD_SIZE_X + 5, i * FIELD_SIZE_Y + 5))
+
+            pygame.draw.rect(screen, blue, pygame.Rect(j * FIELD_SIZE_X, i * FIELD_SIZE_Y,
+                                                       FIELD_SIZE_X, FIELD_SIZE_Y), 5)
 
     for t in range(len(text)):
         msg = assets['font'].render(text[t], False, black)
@@ -115,7 +122,7 @@ def load_assets():
     return assets
 
 
-def main_pygame(wumpus_env, agent_type='dqn', show_world=True):
+def main_pygame(wumpus_env, agent_type='dqn', show_whole_map=True):
 
     env = wumpus_env
 
@@ -126,7 +133,7 @@ def main_pygame(wumpus_env, agent_type='dqn', show_world=True):
     else:
         raise ValueError('Unsupported agent type.')
 
-    agent_state = env.reset_env()       # TODO
+    agent_state = env.reset_env()       # TODO this looks wrong
 
     # Initialize pygame
     pygame.init()
@@ -140,11 +147,22 @@ def main_pygame(wumpus_env, agent_type='dqn', show_world=True):
                           "z - shoot", "c - leave cave in entry"]
     msg = instruction_string + [f"Agent state: {agent_state}"]
 
-    draw_game_window(env, screen, assets, msg, show_world=show_world)
+    visited_rooms = [[0, 0, 0, 0],
+                     [0, 0, 0, 0],
+                     [0, 0, 0, 0],
+                     [1, 0, 0, 0]]
+
+    if show_whole_map:
+        for i in range(len(visited_rooms)):
+            for j in range(len(visited_rooms[i])):
+                visited_rooms[j][i] = 1
+
+    sensed_danger = env.get_sensed_string()
+
+    draw_game_window(env, screen, assets, msg, visited_rooms, sensed_danger)
 
     running = True
     total_reward = 0
-    done = False
     # Main loop
     while running:
         observation = None
@@ -156,6 +174,7 @@ def main_pygame(wumpus_env, agent_type='dqn', show_world=True):
 
         if action is not None:
             new_state, reward, done, info, _ = env.step(action)
+            visited_rooms[env.agentPosXY[0]][env.agentPosXY[1]] = 1
             total_reward += reward
             info = info.split(".")
             msg = instruction_string + [f"Agent state: {new_state}", f"Reward this step: {reward}",
@@ -169,9 +188,11 @@ def main_pygame(wumpus_env, agent_type='dqn', show_world=True):
 
             if done:
                 msg += ["", "Game ended", "Press q or esc to leave"]
-                show_world = True
+                for i in range(len(visited_rooms)):
+                    for j in range(len(visited_rooms[i])):
+                        visited_rooms[j][i] = 1
 
-            draw_game_window(env, screen, assets, msg, show_world=show_world)
+            draw_game_window(env, screen, assets, msg, visited_rooms, sensed_danger)
 
         sleep(0.05)
 
