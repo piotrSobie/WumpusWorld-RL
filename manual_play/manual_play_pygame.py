@@ -25,7 +25,7 @@ green = (0, 153, 0)
 
 
 def draw_grid_world(env, screen, gold_img, wumpus_img, pit_img, agent_img, cave_entry,
-                    field_size_x, field_size_y, text, font):
+                    field_size_x, field_size_y, text, font, visited, sensed):
     screen.fill(white)
 
     for i in range(len(env.grid_world)):
@@ -53,6 +53,14 @@ def draw_grid_world(env, screen, gold_img, wumpus_img, pit_img, agent_img, cave_
             if (i == env.agentPosXY[0]) & (j == env.agentPosXY[1]):
                 screen.blit(agent_img, (j * field_size_x, i * field_size_y, field_size_x, field_size_y))
 
+            if visited[i][j] == 0:
+                pygame.draw.rect(screen, white, pygame.Rect(j * field_size_x, i * field_size_y,
+                                                            field_size_x, field_size_y))
+
+            if (len(sensed) > 0) & (i == env.agentPosXY[0]) & (j == env.agentPosXY[1]):
+                my_sensor_text = font.render(sensed, False, black)
+                screen.blit(my_sensor_text, (j * field_size_x + 5, i * field_size_y + 5))
+
             pygame.draw.rect(screen, blue, pygame.Rect(j * field_size_x, i * field_size_y,
                                                        field_size_x, field_size_y), 5)
 
@@ -65,9 +73,16 @@ def draw_grid_world(env, screen, gold_img, wumpus_img, pit_img, agent_img, cave_
     return
 
 
-def manual_play_pygame_lv1():
+def manual_play_pygame_lv1(show_whole_map):
     env = WumpusWorldLv1()
     agent_state = env.reset_env()
+    sesnsed_danger = env.use_senses()
+    sensed_string = ""
+    if not sesnsed_danger:
+        sensed_string += "nothing"
+    else:
+        for i in sesnsed_danger:
+            sensed_string += i + " "
 
     # Initialize pygame
     pygame.init()
@@ -103,8 +118,18 @@ def manual_play_pygame_lv1():
 
     msg = instruction_string + [f"Agent state: {agent_state}"]
 
+    visited_rooms = [[0, 0, 0, 0],
+                     [0, 0, 0, 0],
+                     [0, 0, 0, 0],
+                     [1, 0, 0, 0]]
+
+    if show_whole_map:
+        for i in range(len(visited_rooms)):
+            for j in range(len(visited_rooms[i])):
+                visited_rooms[j][i] = 1
+
     draw_grid_world(env, screen, gold_img, wumpus_img, pit_img, agent_img, cave_entry_img,
-                    field_size_x, field_size_y, msg, my_font)
+                    field_size_x, field_size_y, msg, my_font, visited_rooms, sensed_string)
 
     running = True
     total_reward = 0
@@ -129,6 +154,7 @@ def manual_play_pygame_lv1():
 
         if action is not None:
             new_state, reward, done, info, _ = env.step(action)
+            visited_rooms[env.agentPosXY[0]][env.agentPosXY[1]] = 1
             total_reward += reward
             info = info.split(".")
             msg = instruction_string + [f"Agent state: {new_state}", f"Reward this step: {reward}",
@@ -142,19 +168,37 @@ def manual_play_pygame_lv1():
                     msg += [i]
             if done:
                 msg += ["", "Game ended", "Press any key to leave"]
+
+            sensed_string = ""
+            if not sesnsed_danger:
+                sensed_string += "nothing"
+            else:
+                for i in sesnsed_danger:
+                    sensed_string += i + " "
+
+            if done:
+                for i in range(len(visited_rooms)):
+                    for j in range(len(visited_rooms[i])):
+                        visited_rooms[j][i] = 1
+
             draw_grid_world(env, screen, gold_img, wumpus_img, pit_img, agent_img, cave_entry_img,
-                            field_size_x, field_size_y, msg, my_font)
+                            field_size_x, field_size_y, msg, my_font, visited_rooms, sensed_string)
 
     return
 
 
-def manual_play_pygame_lv2_plus(wumpus_env):
+def manual_play_pygame_lv2_plus(wumpus_env, show_whole_map):
     env = wumpus_env
 
-    if env.random_grid is not None:
-        env.random_grid = True
+    # for lv 4 only
+    try:
+        if env.random_grid is not None:
+            env.random_grid = True
+    except:
+        print()
 
     agent_state = env.reset_env()
+    sesnsed_danger = env.get_sensed_string()
 
     # Initialize pygame
     pygame.init()
@@ -201,7 +245,7 @@ def manual_play_pygame_lv2_plus(wumpus_env):
     cave_entry_img = pygame.image.load("assets/cave_entry_img.png").convert()
     cave_entry_img = pygame.transform.scale(cave_entry_img, (field_size_x, field_size_y))
 
-    msg = instruction_string + [f"Agent state: {agent_state}"]
+    msg = instruction_string
 
     agent = None
     # up
@@ -217,8 +261,18 @@ def manual_play_pygame_lv2_plus(wumpus_env):
     elif env.agent_direction == 3:
         agent = agent_img_left
 
+    visited_rooms = [[0, 0, 0, 0],
+                     [0, 0, 0, 0],
+                     [0, 0, 0, 0],
+                     [1, 0, 0, 0]]
+
+    if show_whole_map:
+        for i in range(len(visited_rooms)):
+            for j in range(len(visited_rooms[i])):
+                visited_rooms[j][i] = 1
+
     draw_grid_world(env, screen, gold_img, wumpus_img, pit_img, agent, cave_entry_img,
-                    field_size_x, field_size_y, msg, my_font)
+                    field_size_x, field_size_y, msg, my_font, visited_rooms, sesnsed_danger)
 
     running = True
     total_reward = 0
@@ -247,9 +301,10 @@ def manual_play_pygame_lv2_plus(wumpus_env):
 
         if action is not None:
             new_state, reward, done, info, _ = env.step(action)
+            visited_rooms[env.agentPosXY[0]][env.agentPosXY[1]] = 1
             total_reward += reward
             info = info.split(".")
-            msg = instruction_string + [f"Agent state: {new_state}", f"Reward this step: {reward}",
+            msg = instruction_string + [f"Reward this step: {reward}",
                                         f"Total reward: {total_reward}", f"Done: {done}", "Info:"] + info \
                   + ["The agent senses:"]
             sesnsed_danger = env.get_sensed_string()
@@ -275,7 +330,12 @@ def manual_play_pygame_lv2_plus(wumpus_env):
             elif env.agent_direction == 3:
                 agent = agent_img_left
 
+            if done:
+                for i in range(len(visited_rooms)):
+                    for j in range(len(visited_rooms[i])):
+                        visited_rooms[j][i] = 1
+
             draw_grid_world(env, screen, gold_img, wumpus_img, pit_img, agent, cave_entry_img,
-                            field_size_x, field_size_y, msg, my_font)
+                            field_size_x, field_size_y, msg, my_font, visited_rooms, sesnsed_danger)
 
     return

@@ -8,7 +8,8 @@ from rl_alg.dqn.epsilon_greedy_strategy import EpsilonGreedyStrategy
 
 class Agent:
     def __init__(self, input_dims, n_actions, gamma=0.99, epsilon=1.0, lr=0.01, batch_size=64,
-                 max_mem_size=100000, eps_end=0.01, eps_dec=5e-4, replace_target=100, loaded_state=None):
+                 max_mem_size=100000, eps_end=0.01, eps_dec=5e-4, replace_target=100,
+                 replay_memory=None, net_state_dict=None, optimizer_state_dict=None):
         self.gamma = gamma
         self.lr = lr
         self.action_space = [i for i in range(n_actions)]
@@ -22,22 +23,20 @@ class Agent:
         self.Q_next.load_state_dict(self.Q_eval.state_dict())
         self.Q_next.eval()
 
-        self.memory = ReplayMemory(max_mem_size, input_dims)
+        if replay_memory is not None:
+            self.memory = replay_memory
+        else:
+            self.memory = ReplayMemory(max_mem_size, input_dims)
+
         self.eps_strategy = EpsilonGreedyStrategy(epsilon, eps_end, eps_dec)
 
-        # load data
-        if loaded_state is not None:
-            self.gamma = loaded_state['gamma']
-            self.eps_strategy = loaded_state['epsilon_strategy']
-            self.batch_size = loaded_state['batch_size']
-            self.lr = loaded_state['lr']
-            self.replace_target = loaded_state['replace_target']
-            self.memory = loaded_state['replay_memory']
-
-            self.Q_eval.load_state_dict(loaded_state['state_dict'])
-            self.Q_next.load_state_dict(loaded_state['state_dict'])
+        if net_state_dict is not None:
+            self.Q_eval.load_state_dict(net_state_dict)
+            self.Q_next.load_state_dict(net_state_dict)
             self.Q_next.eval()
-            self.Q_eval.optimizer.load_state_dict(loaded_state['optimizer'])
+
+        if optimizer_state_dict is not None:
+            self.Q_eval.optimizer.load_state_dict(optimizer_state_dict)
 
     def choose_action(self, observation):
         if np.random.random() >= self.eps_strategy.get_epsilon():
@@ -71,7 +70,6 @@ class Agent:
         self.Q_eval.optimizer.step()
 
         self.iter_cntr += 1
-        self.eps_strategy.update_epsilon()
 
         if self.iter_cntr % self.replace_target == 0:
             self.Q_next.load_state_dict(self.Q_eval.state_dict())
