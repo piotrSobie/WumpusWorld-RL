@@ -1,23 +1,11 @@
-from manual_play.manual_pygame_agent import ManualPygameAgent, QuitException
+from gui.manual_pygame_agent import ManualPygameAgent, QuitException
 from rl_alg.dqn.dqn_agent import DQNAgent
-from wumpus_envs.wumpus_env_lv1 import WumpusWorldLv1
 from time import sleep
 
 import pygame
 from pygame.locals import (
         RLEACCEL,
-        K_ESCAPE,
-        K_q,
-        K_w,
-        K_s,
-        K_d,
-        K_a,
-        K_g,
-        K_z,
-        K_c,
-        KEYDOWN,
-        QUIT,
-    )
+)
 
 red = (153, 0, 0)
 white = (255, 255, 255)
@@ -173,11 +161,11 @@ def main_pygame(wumpus_env, agent_type='dqn', show_world=True):
             msg = instruction_string + [f"Agent state: {new_state}", f"Reward this step: {reward}",
                                         f"Total reward: {total_reward}", f"Done: {done}", "Info:"] + info \
                   + ["The agent senses:"]
-            sesnsed_danger = env.get_sensed_string()
-            if not sesnsed_danger:
+            sensed_danger = env.get_sensed_string()
+            if not sensed_danger:
                 msg += ["nothing"]
             else:
-                msg += [sesnsed_danger]
+                msg += [sensed_danger]
 
             if done:
                 msg += ["", "Game ended", "Press q or esc to leave"]

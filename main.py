@@ -6,7 +6,7 @@ from wumpus_envs.wumpus_env_lv3v3 import WumpusWorldLv3v3
 from wumpus_envs.wumpus_env_lv4 import WumpusWorldLv4
 
 from manual_play.manual_play_cmd import manual_play_lv1, manual_play_lv2_plus
-from manual_play.manual_play_pygame import main_pygame
+from gui.main_pygame import main_pygame
 from rl_alg.q_learn import q_learn
 from rl_alg.dqn.dqn_alg import dqn_algorithm
 from rl_alg.dqn.test_agent import test_agent_dqn
