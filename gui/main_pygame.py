@@ -4,7 +4,8 @@ from time import sleep
 
 import pygame
 from pygame.locals import (
-        RLEACCEL,
+    RLEACCEL,
+    KEYDOWN
 )
 
 red = (153, 0, 0)
@@ -21,7 +22,6 @@ SCREEN_HEIGHT = 600
 
 
 def draw_game_window(env, screen, assets, text, visited, sensed):
-
     screen.fill(white)
 
     agent_img = None
@@ -49,7 +49,7 @@ def draw_game_window(env, screen, assets, text, visited, sensed):
                 pygame.draw.rect(screen, red, pygame.Rect(j * FIELD_SIZE_X, i * FIELD_SIZE_Y,
                                                           FIELD_SIZE_X, FIELD_SIZE_Y))
                 screen.blit(assets['wumpus'], (j * FIELD_SIZE_X, i * FIELD_SIZE_Y,
-                                         FIELD_SIZE_X, FIELD_SIZE_Y))
+                                               FIELD_SIZE_X, FIELD_SIZE_Y))
             elif env.grid_world[i][j] == env.pit_field:
                 screen.blit(assets['pit'], (j * FIELD_SIZE_X, i * FIELD_SIZE_Y, FIELD_SIZE_X, FIELD_SIZE_Y))
 
@@ -123,7 +123,6 @@ def load_assets():
 
 
 def main_pygame(wumpus_env, agent_type='dqn', show_whole_map=True):
-
     env = wumpus_env
 
     if agent_type == 'dqn':
@@ -133,7 +132,7 @@ def main_pygame(wumpus_env, agent_type='dqn', show_whole_map=True):
     else:
         raise ValueError('Unsupported agent type.')
 
-    agent_state = env.reset_env()       # TODO this looks wrong
+    agent_state = env.reset_env()  # TODO this looks wrong
 
     # Initialize pygame
     pygame.init()
@@ -163,37 +162,44 @@ def main_pygame(wumpus_env, agent_type='dqn', show_whole_map=True):
 
     running = True
     total_reward = 0
+    done = False
     # Main loop
     while running:
-        observation = None
-        try:
-            action = agent.choose_action(observation)
-        except QuitException:
-            action = None
-            running = False
+        if not done:
+            observation = None
+            try:
+                action = agent.choose_action(observation)
+            except QuitException:
+                action = None
+                running = False
 
-        if action is not None:
-            new_state, reward, done, info, _ = env.step(action)
-            visited_rooms[env.agentPosXY[0]][env.agentPosXY[1]] = 1
-            total_reward += reward
-            info = info.split(".")
-            msg = instruction_string + [f"Agent state: {new_state}", f"Reward this step: {reward}",
-                                        f"Total reward: {total_reward}", f"Done: {done}", "Info:"] + info \
-                  + ["The agent senses:"]
-            sensed_danger = env.get_sensed_string()
-            if not sensed_danger:
-                msg += ["nothing"]
-            else:
-                msg += [sensed_danger]
+            if action is not None:
+                new_state, reward, done, info, _ = env.step(action)
+                visited_rooms[env.agentPosXY[0]][env.agentPosXY[1]] = 1
+                total_reward += reward
+                info = info.split(".")
+                msg = instruction_string + [f"Agent state: {new_state}", f"Reward this step: {reward}",
+                                            f"Total reward: {total_reward}", f"Done: {done}", "Info:"]
+                msg += info
+                msg += ["The agent senses:"]
+                sensed_danger = env.get_sensed_string()
+                if not sensed_danger:
+                    msg += ["nothing"]
+                else:
+                    msg += [sensed_danger]
 
-            if done:
-                msg += ["", "Game ended", "Press q or esc to leave"]
-                for i in range(len(visited_rooms)):
-                    for j in range(len(visited_rooms[i])):
-                        visited_rooms[j][i] = 1
+        else:  # done
+            if 'end_msg' not in locals():
+                end_msg = msg + ["", "Game ended", "Press any kay to leave"]
+                msg = end_msg
+            for i in range(len(visited_rooms)):
+                for j in range(len(visited_rooms[i])):
+                    visited_rooms[j][i] = 1
+            for event in pygame.event.get():
+                if event.type == KEYDOWN:
+                    running = False
 
-            draw_game_window(env, screen, assets, msg, visited_rooms, sensed_danger)
-
+        draw_game_window(env, screen, assets, msg, visited_rooms, sensed_danger)
         sleep(0.05)
 
     return
