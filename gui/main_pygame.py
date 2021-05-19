@@ -1,3 +1,4 @@
+from agent import Agent
 from gui.manual_pygame_agent import ManualPygameAgent, QuitException
 from rl_alg.dqn.dqn_agent import DQNAgent
 from time import sleep
@@ -122,17 +123,13 @@ def load_assets():
     return assets
 
 
-def main_pygame(wumpus_env, agent_type='dqn', show_whole_map=True):
+def main_pygame(wumpus_env, agent, show_whole_map=True, max_ep_len=100):
     env = wumpus_env
 
-    if agent_type == 'dqn':
-        agent = DQNAgent()
-    elif agent_type == 'manual':
-        agent = ManualPygameAgent()
-    else:
+    if not isinstance(agent, Agent):
         raise ValueError('Unsupported agent type.')
 
-    agent_state = env.reset_env()  # TODO this looks wrong
+    observation = env.reset_env()
 
     # Initialize pygame
     pygame.init()
@@ -144,7 +141,7 @@ def main_pygame(wumpus_env, agent_type='dqn', show_whole_map=True):
     instruction_string = ["Goal: leave cave with gold", "Instruction:", "q | ESC - terminate program",
                           "w - move forward", "a - turn left", "d - turn right", "g - take gold",
                           "z - shoot", "c - leave cave in entry"]
-    msg = instruction_string + [f"Agent state: {agent_state}"]
+    msg = instruction_string + [f"Observation: {observation}"]
 
     visited_rooms = [[0, 0, 0, 0],
                      [0, 0, 0, 0],
@@ -160,13 +157,13 @@ def main_pygame(wumpus_env, agent_type='dqn', show_whole_map=True):
 
     draw_game_window(env, screen, assets, msg, visited_rooms, sensed_danger)
 
+    n_steps = 0
     running = True
     total_reward = 0
     done = False
     # Main loop
     while running:
         if not done:
-            observation = None
             try:
                 action = agent.choose_action(observation)
             except QuitException:
@@ -175,11 +172,14 @@ def main_pygame(wumpus_env, agent_type='dqn', show_whole_map=True):
 
             if action is not None:
                 new_state, reward, done, info, _ = env.step(action)
+                observation = new_state
                 visited_rooms[env.agentPosXY[0]][env.agentPosXY[1]] = 1
                 total_reward += reward
+                n_steps += 1
                 info = info.split(".")
                 msg = instruction_string + [f"Agent state: {new_state}", f"Reward this step: {reward}",
-                                            f"Total reward: {total_reward}", f"Done: {done}", "Info:"]
+                                            f"Total reward: {total_reward}", f"Step: {n_steps}", f"Done: {done}",
+                                            "Info:"]
                 msg += info
                 msg += ["The agent senses:"]
                 sensed_danger = env.get_sensed_string()
@@ -187,7 +187,8 @@ def main_pygame(wumpus_env, agent_type='dqn', show_whole_map=True):
                     msg += ["nothing"]
                 else:
                     msg += [sensed_danger]
-
+                if n_steps >= max_ep_len:
+                    done = True
         else:  # done
             if 'end_msg' not in locals():
                 end_msg = msg + ["", "Game ended", "Press any kay to leave"]

@@ -1,3 +1,5 @@
+from gui.manual_pygame_agent import ManualPygameAgent
+from rl_alg.dqn.dqn_agent import DQNAgent
 from wumpus_envs.wumpus_env_lv1 import WumpusWorldLv1
 from wumpus_envs.wumpus_env_lv2 import WumpusWorldLv2
 from wumpus_envs.wumpus_env_lv3v1 import WumpusWorldLv3v1
@@ -219,7 +221,8 @@ if __name__ == '__main__':
         if args.env == "lv1":
             raise NotImplementedError
         else:
-            main_pygame(examined_env, 'manual', show_whole_map)
+            agent = ManualPygameAgent()
+            main_pygame(examined_env, agent, show_whole_map)
     elif mode == "manual-cmd":
         if args.env == "lv1":
             manual_play_lv1()
@@ -245,5 +248,8 @@ if __name__ == '__main__':
 
         if mode == "test":
             test_agent_dqn(examined_env, load_state_path=state_path)
-        else:
-            NotImplementedError()
+        else:   # test-gui
+            # # load agent from file
+            agent = DQNAgent.load_agent(state_path, examined_env.action_space_n,
+                                        examined_env.dqn_observation_state_number)
+            main_pygame(examined_env, agent, show_whole_map)

@@ -74,3 +74,21 @@ class DQNAgent(Agent):
 
         if self.iter_cntr % self.replace_target == 0:
             self.Q_next.load_state_dict(self.Q_eval.state_dict())
+
+    @staticmethod
+    def load_agent(load_state_path, n_actions, n_observations):
+        models_directory = 'saved_models'
+        loaded_state = T.load(f"{models_directory}/{load_state_path}")
+
+        batch_size_dqn = loaded_state['batch_size']
+        gamma_dqn = loaded_state['gamma']
+        target_update_dqn = loaded_state['replace_target']
+        lr_dqn = loaded_state['lr']
+        replay_memory_dqn = loaded_state['replay_memory']
+        net_state_dict_dqn = loaded_state['state_dict']
+        optimizer_state_dict_dqn = loaded_state['optimizer']
+        agent = DQNAgent(n_actions=n_actions, input_dims=n_observations, gamma=gamma_dqn, epsilon=0.0, lr=lr_dqn,
+                         batch_size=batch_size_dqn, eps_end=0.0, eps_dec=0.0, replace_target=target_update_dqn,
+                         replay_memory=replay_memory_dqn, net_state_dict=net_state_dict_dqn,
+                         optimizer_state_dict=optimizer_state_dict_dqn)
+        return agent
