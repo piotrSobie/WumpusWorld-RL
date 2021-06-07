@@ -152,8 +152,7 @@ def dqn_algorithm(wumpus_env, batch_size_=64, gamma_=0.999, eps_start_=1.0, eps_
                 action = agent.choose_action(observation)
                 new_observation, reward, done, _, _ = env.step(action)
                 score += reward
-                agent.memory.store_transitions(observation, action, reward, new_observation, done)
-                agent.learn()
+                agent.learn(observation, action, reward, new_observation, done)
                 observation = new_observation
 
                 current_step += 1

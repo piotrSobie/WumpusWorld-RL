@@ -4,7 +4,7 @@ import torch as T
 from agent import Agent
 from rl_alg.dqn.dqn_network import DeepQNetwork
 from rl_alg.dqn.replay_memory import ReplayMemory
-from rl_alg.dqn.epsilon_greedy_strategy import EpsilonGreedyStrategy
+from rl_alg.epsilon_greedy_strategy import EpsilonGreedyStrategy
 
 
 class DQNAgent(Agent):
@@ -49,7 +49,10 @@ class DQNAgent(Agent):
 
         return action
 
-    def learn(self):
+    def learn(self, observation, action, reward, new_observation, done):
+
+        self.memory.store_transitions(observation, action, reward, new_observation, done)
+
         if self.memory.can_provide_sample(self.batch_size):
             return
 

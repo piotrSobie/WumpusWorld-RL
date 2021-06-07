@@ -37,6 +37,7 @@ class WumpusWorldLv1:
         self.gold_reward = 1000
         self.death_by_wumpus_reward = -1000
         self.death_by_pit_reward = -1000
+        self.agent_direction = None
 
     def get_new_env(self):
         env = [[self.regular_field, self.regular_field, self.gold_field, self.pit_field],
@@ -157,6 +158,9 @@ class WumpusWorldLv1:
                     sensed.append(self.breeze_string)
 
         return sensed
+
+    def get_sensed_string(self):
+        return ""
 
     def render_env(self):
         for i in range(len(self.grid_world)):

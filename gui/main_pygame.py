@@ -1,6 +1,5 @@
 from agent import Agent
-from gui.manual_pygame_agent import ManualPygameAgent, QuitException
-from rl_alg.dqn.dqn_agent import DQNAgent
+from gui.manual_pygame_agent import QuitException
 from time import sleep
 
 import pygame
@@ -25,7 +24,6 @@ SCREEN_HEIGHT = 600
 def draw_game_window(env, screen, assets, text, visited, sensed):
     screen.fill(white)
 
-    agent_img = None
     if env.agent_direction == 0:
         agent_img = assets['agent_up']
     elif env.agent_direction == 1:
@@ -34,6 +32,8 @@ def draw_game_window(env, screen, assets, text, visited, sensed):
         agent_img = assets['agent_down']
     elif env.agent_direction == 3:
         agent_img = assets['agent_left']
+    else:
+        agent_img = assets['agent']
 
     for i in range(len(env.grid_world)):
         for j in range(len(env.grid_world[i])):
@@ -113,6 +113,11 @@ def load_assets():
     agent_img_up = pygame.transform.scale(agent_img_up, (FIELD_SIZE_X, FIELD_SIZE_Y))
     agent_img_up = pygame.transform.rotate(agent_img_up, 270)
     assets['agent_up'] = agent_img_up
+
+    agent_img = pygame.image.load("assets/agent_img.png").convert()
+    agent_img = pygame.transform.scale(agent_img, (FIELD_SIZE_X, FIELD_SIZE_Y))
+    agent_img.set_colorkey(black, RLEACCEL)
+    assets['agent'] = agent_img
 
     cave_entry_img = pygame.image.load("assets/cave_entry_img.png").convert()
     cave_entry_img = pygame.transform.scale(cave_entry_img, (FIELD_SIZE_X, FIELD_SIZE_Y))

@@ -1,4 +1,4 @@
-from gui.manual_pygame_agent import ManualPygameAgent
+from gui.manual_pygame_agent import ManualPygameAgent, Lv1ManualPygameAgent
 from rl_alg.dqn.dqn_agent import DQNAgent
 from wumpus_envs.wumpus_env_lv1 import WumpusWorldLv1
 from wumpus_envs.wumpus_env_lv2 import WumpusWorldLv2
@@ -6,13 +6,16 @@ from wumpus_envs.wumpus_env_lv3v1 import WumpusWorldLv3v1
 from wumpus_envs.wumpus_env_lv3v2 import WumpusWorldLv3v2
 from wumpus_envs.wumpus_env_lv3v3 import WumpusWorldLv3v3
 from wumpus_envs.wumpus_env_lv4 import WumpusWorldLv4
+from envs.frozen_lake import FrozenLake
 
 from manual_play.manual_play_cmd import manual_play_lv1, manual_play_lv2_plus
 from gui.main_pygame import main_pygame
+from gui.main_pygame2 import main_pygame2
 from rl_alg.q_learn import q_learn
 from rl_alg.dqn.dqn_alg import dqn_algorithm
 from rl_alg.dqn.test_agent import test_agent_dqn
 from rl_alg.dqn.dqn_default_params import DqnDefaultParams
+from rl_alg.q_agent import QAgent
 
 import argparse
 import time
@@ -62,26 +65,29 @@ if __name__ == '__main__':
                                               "dqn, test (with test --state_path must be specified),"
                                               "test-gui", required=True)
     # optional arguments
-    parser.add_argument("--num_episodes", help=f"Number of learning episodes, default={num_episodes}")
+    parser.add_argument("--num_episodes", help=f"Number of learning episodes, default={num_episodes}", default=num_episodes)
     parser.add_argument("--max_steps_per_episode", help=f"Maximum number of steps per episode, "
-                                                        f"default={max_steps_per_episode}")
-    parser.add_argument("--lr", help=f"Learning rate, should be in <0, 1>, default={learning_rate}")
-    parser.add_argument("--discount", help=f"Discount rate (gamma), should be in <0, 1>, default={discount_rate}")
-    parser.add_argument("--eps_start", help=f"Epsilon starting value, should be in <0, 1>, default={epsilon_start}")
-    parser.add_argument("--eps_decay", help=f"Epsilon decay rate, default={epsilon_decay}")
-    parser.add_argument("--eps_min", help=f"Epsilon min, should be in <0, 1>, default={epsilon_min}")
-    parser.add_argument("--show_whole_map", help=f"Show whole map in manual play, default={show_whole_map}")
-    parser.add_argument("--show_actions_plot", help=f"Show plot with number of actions, default={show_actions_plot}")
-    parser.add_argument("--show_reward_plot", help=f"Show plot with rewards, default={show_reward_plot}")
-    parser.add_argument("--show_games_won_plot", help=f"Show plot with games won, default={show_games_won_plot}")
-    parser.add_argument("--show_learned_path", help=f"Show learned path after learning, default={show_learned_path}")
-    parser.add_argument("--batch_size", help=f"Used in DQN replay memory, default={batch_size}")
+                                                        f"default={max_steps_per_episode}", default=max_steps_per_episode)
+    parser.add_argument("--lr", help=f"Learning rate, should be in <0, 1>, default={learning_rate}", default=learning_rate)
+    parser.add_argument("--discount", help=f"Discount rate (gamma), should be in <0, 1>, default={discount_rate}", default=discount_rate)
+    parser.add_argument("--eps_start", help=f"Epsilon starting value, should be in <0, 1>, default={epsilon_start}", default=epsilon_start)
+    parser.add_argument("--eps_decay", help=f"Epsilon decay rate, default={epsilon_decay}", default=epsilon_decay)
+    parser.add_argument("--eps_min", help=f"Epsilon min, should be in <0, 1>, default={epsilon_min}", default=epsilon_min)
+    parser.add_argument("--show_whole_map", help=f"Show whole map in manual play, default={show_whole_map}", default=show_whole_map, type=bool)
+    parser.add_argument("--show_actions_plot", help=f"Show plot with number of actions, default={show_actions_plot}", default=show_actions_plot, type=bool)
+    parser.add_argument("--show_reward_plot", help=f"Show plot with rewards, default={show_reward_plot}", default=show_reward_plot, type=bool)
+    parser.add_argument("--show_games_won_plot", help=f"Show plot with games won, default={show_games_won_plot}", default=show_games_won_plot, type=bool)
+    parser.add_argument("--show_learned_path", help=f"Show learned path after learning, default={show_learned_path}", default=show_learned_path, type=bool)
+    parser.add_argument("--batch_size", help=f"Used in DQN replay memory, default={batch_size}", default=batch_size)
     parser.add_argument("--target_update", help=f"Used in DQN, tells how often target network should be updated, "
-                                                f"default={target_update}")
-    parser.add_argument("--memory_size", help=f"Used in DQN, set replay memory size, default={memory_size}")
+                                                f"default={target_update}", default=target_update)
+    parser.add_argument("--memory_size", help=f"Used in DQN, set replay memory size, default={memory_size}", default=memory_size)
     parser.add_argument("--state_path", help=f"Loading state from /saved_models/PATH, PATH must be specified")
-    parser.add_argument("--save_every", help=f"Saving checkpoint at specified frequency, default={save_every}")
-    parser.add_argument("--random_grid", help=f"Whether the world is random or constant, default={random_grid}")
+    parser.add_argument("--save_every", help=f"Saving checkpoint at specified frequency, default={save_every}", default=save_every)
+    parser.add_argument("--random_grid", help=f"Whether the world is random or constant, default={random_grid}", default=random_grid)
+    parser.add_argument("--no_render", help=f"Whether to display pygame", dest='render', action='store_false')
+
+    parser.set_defaults(render=True)
 
     args = parser.parse_args()
     exception_msg = "Invalid environment, try python main.py --help"
@@ -98,6 +104,8 @@ if __name__ == '__main__':
         examined_env = WumpusWorldLv3v3()
     elif args.env == "lv4":
         examined_env = WumpusWorldLv4()
+    elif args.env == "lake":
+        examined_env = FrozenLake()
     else:
         raise Exception(exception_msg)
 
@@ -112,46 +120,11 @@ if __name__ == '__main__':
     target_update = args.target_update
     memory_size = args.memory_size
     save_every = args.save_every
-
-    if args.show_actions_plot is not None:
-        if args.show_actions_plot.lower() == "true":
-            show_actions_plot = True
-        elif args.show_actions_plot.lower() == "false":
-            show_actions_plot = False
-        else:
-            show_actions_plot = bool(int(args.show_actions_plot))
-
-    if args.show_reward_plot is not None:
-        if args.show_reward_plot.lower() == "true":
-            show_reward_plot = True
-        elif args.show_reward_plot.lower() == "false":
-            show_reward_plot = False
-        else:
-            show_reward_plot = bool(int(args.show_reward_plot))
-
-    if args.show_games_won_plot is not None:
-        if args.show_games_won_plot.lower() == "true":
-            show_games_won_plot = True
-        elif args.show_games_won_plot.lower() == "false":
-            show_games_won_plot = False
-        else:
-            show_games_won_plot = bool(int(args.show_games_won_plot))
-
-    if args.show_learned_path is not None:
-        if args.show_learned_path.lower() == "true":
-            show_learned_path = True
-        elif args.show_learned_path.lower() == "false":
-            show_learned_path = False
-        else:
-            show_learned_path = bool(int(args.show_learned_path))
-
-    if args.random_grid is not None:
-        if args.random_grid.lower() == "true":
-            random_grid = True
-        elif args.random_grid.lower() == "false":
-            random_grid = False
-        else:
-            random_grid = bool(int(args.random_grid))
+    show_whole_map = args.show_whole_map
+    show_actions_plot = args.show_actions_plot
+    show_learned_path = args.show_learned_path
+    show_reward_plot = args.show_reward_plot
+    show_games_won_plot = args.show_games_won_plot
 
     examined_env.random_grid = random_grid
 
@@ -166,14 +139,6 @@ if __name__ == '__main__':
 
     if args.save_every is not None:
         save_every = float(args.save_every)
-
-    if args.show_whole_map is not None:
-        if args.show_whole_map.lower() == "true":
-            show_whole_map = True
-        elif args.show_whole_map.lower() == "false":
-            show_whole_map = False
-        else:
-            show_whole_map = bool(int(args.show_learned_path))
 
     if args.mode == "manual":
         mode = "manual"
@@ -190,39 +155,44 @@ if __name__ == '__main__':
     else:
         raise Exception(exception_msg)
 
-    print("\nSet parameters:")
-    print("\nQ-learning & DQN parameters:")
+    # print("\nSet parameters:")
+    # print("\nQ-learning & DQN parameters:")
     print(f"Env name: {examined_env.__class__.__name__}")
-    print(f"Grid randomness {examined_env.random_grid}")
+    # print(f"Grid randomness {examined_env.random_grid}")
     print(f"Mode: {mode}")
-    print(f"Num episodes: {num_episodes}")
-    print(f"Max steps per episodes: {max_steps_per_episode}")
-    print(f"Learning rate: {learning_rate}")
-    print(f"Discount rate (gamma): {discount_rate}")
-    print(f"Epsilon start: {epsilon_start}")
-    print(f"Epsilon decay: {epsilon_decay}")
-    print(f"Epsilon min: {epsilon_min}")
-    print("\nQ-learning only parameters:")
-    print(f"Show number actions plot: {show_actions_plot}")
-    print(f"Show reward plot: {show_reward_plot}")
-    print(f"Show games won plot: {show_games_won_plot}")
-    print(f"Show learned path: {show_learned_path}")
-    print("\nDQN only parameters:")
-    print(f"Batch size: {batch_size}")
-    print(f"Target update: {target_update}")
-    print(f"Memory size: {memory_size}")
+    # print(f"Num episodes: {num_episodes}")
+    # print(f"Max steps per episodes: {max_steps_per_episode}")
+    # print(f"Learning rate: {learning_rate}")
+    # print(f"Discount rate (gamma): {discount_rate}")
+    # print(f"Epsilon start: {epsilon_start}")
+    # print(f"Epsilon decay: {epsilon_decay}")
+    # print(f"Epsilon min: {epsilon_min}")
+    # print("\nQ-learning only parameters:")
+    # print(f"Show number actions plot: {show_actions_plot}")
+    # print(f"Show reward plot: {show_reward_plot}")
+    # print(f"Show games won plot: {show_games_won_plot}")
+    # print(f"Show learned path: {show_learned_path}")
+    # print("\nDQN only parameters:")
+    # print(f"Batch size: {batch_size}")
+    # print(f"Target update: {target_update}")
+    # print(f"Memory size: {memory_size}")
     if args.state_path is not None:
         state_path = args.state_path
     print(f"Load state path: {state_path}")
     print(f"\nWaiting {time_for_reading_set_parameters} seconds...")
     time.sleep(time_for_reading_set_parameters)
 
-    if mode == "manual":
-        if args.env == "lv1":
-            raise NotImplementedError
+    if args.env == "lake":
+        agent = QAgent(16, 4, manual_action= mode=="manual")
+        if state_path is not None:
+            agent.load(state_path)
+        main_pygame2(examined_env, agent, save_path='q_table', render=args.render)
+    elif mode == "manual":
+        if args.env == "lv1" or args.env == "lake":
+            agent = Lv1ManualPygameAgent()
         else:
             agent = ManualPygameAgent()
-            main_pygame(examined_env, agent, show_whole_map)
+        main_pygame(examined_env, agent, show_whole_map)
     elif mode == "manual-cmd":
         if args.env == "lv1":
             manual_play_lv1()
