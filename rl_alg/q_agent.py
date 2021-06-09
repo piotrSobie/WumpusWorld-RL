@@ -2,12 +2,14 @@ import numpy as np
 from agent import Agent
 from rl_alg.epsilon_greedy_strategy import EpsilonGreedyStrategy
 from gui.manual_pygame_agent import wsad_manual_simple_action
+from abc import abstractmethod
 
 
 class QAgent(Agent):
 
     def __init__(self, n_states, n_actions, lr=0.1, gamma=0.99,  epsilon=0.5, eps_end=0.0001, eps_dec=5e-4,
                  initial_q_value=0.0, q_table=None, manual_action=False):
+        super().__init__()
         self.gamma = gamma
         self.lr = lr
         self.action_space = [i for i in range(n_actions)]
@@ -36,11 +38,17 @@ class QAgent(Agent):
         return action
 
     def learn(self, observation, action, reward, new_observation, done):
-        self.q_table[observation, action] = (1 - self.lr) * self.q_table[observation, action] + \
-                                            self.lr * (reward + self.gamma * np.max(self.q_table[new_observation, :]))
+        idx = self.from_state_to_idx(observation)
+        new_idx = self.from_state_to_idx(new_observation)
+        self.q_table[idx, action] = (1 - self.lr) * self.q_table[idx, action] + \
+            self.lr * (reward + self.gamma * np.max(self.q_table[new_idx, :]))
 
-    def save_q_table(self, path):
+    def save(self, path):
         np.save(path, self.q_table)
 
     def load(self, path):
         self.q_table = np.load(path)
+
+    @abstractmethod
+    def from_state_to_idx(self, state):
+        pass

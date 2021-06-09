@@ -5,7 +5,7 @@ from itertools import product
 import datetime
 import os
 
-from rl_alg.dqn.dqn_agent import Agent
+from rl_alg.dqn.dqn_agent import DQNAgent
 from rl_alg.dqn.utils import plot_learning
 from rl_alg.dqn.dqn_default_params import DqnDefaultParams
 
@@ -131,10 +131,9 @@ def dqn_algorithm(wumpus_env, batch_size_=64, gamma_=0.999, eps_start_=1.0, eps_
         max_nr_of_loops_hyper_parameters_variations *= len(e)
 
     for gamma, epsilon, eps_dec, eps_end, batch_size, lr, max_mem_size, replace_target in product(*param_values):
-        agent = Agent(gamma=gamma, epsilon=epsilon, eps_dec=eps_dec, eps_end=eps_end, batch_size=batch_size,
-                      lr=lr, max_mem_size=max_mem_size, replace_target=replace_target,
-                      n_actions=env_action_n, input_dims=env_obs_n, replay_memory=replay_memory_dqn,
-                      net_state_dict=net_state_dict_dqn, optimizer_state_dict=optimizer_state_dict_dqn)
+        agent = DQNAgent(gamma=gamma, epsilon=epsilon, eps_dec=eps_dec, eps_end=eps_end, batch_size=batch_size, lr=lr, max_mem_size=max_mem_size, replace_target=replace_target,
+                         n_actions=env_action_n, input_dims=env_obs_n, replay_memory=replay_memory_dqn,
+                         net_state_dict=net_state_dict_dqn, optimizer_state_dict=optimizer_state_dict_dqn)
 
         scores, eps_history = [], []
         best_avg_score = None

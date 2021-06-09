@@ -6,11 +6,14 @@ from rl_alg.dqn.dqn_network import DeepQNetwork
 from rl_alg.dqn.replay_memory import ReplayMemory
 from rl_alg.epsilon_greedy_strategy import EpsilonGreedyStrategy
 
+from abc import abstractmethod
+
 
 class DQNAgent(Agent):
-    def __init__(self, input_dims, n_actions, gamma=0.99, epsilon=1.0, lr=0.01, batch_size=64,
-                 max_mem_size=100000, eps_end=0.01, eps_dec=5e-4, replace_target=100,
+    def __init__(self, input_dims, n_actions, gamma=0.99, epsilon=0.5, lr=0.01, batch_size=64,
+                 max_mem_size=500, eps_end=0.01, eps_dec=5e-4, replace_target=50,
                  replay_memory=None, net_state_dict=None, optimizer_state_dict=None):
+        super().__init__()
         self.gamma = gamma
         self.lr = lr
         self.action_space = [i for i in range(n_actions)]
@@ -18,8 +21,8 @@ class DQNAgent(Agent):
         self.iter_cntr = 0
         self.replace_target = replace_target
 
-        self.Q_eval = DeepQNetwork(self.lr, n_actions=n_actions, input_dims=input_dims, fc1_dims=256, fc2_dims=256)
-        self.Q_next = DeepQNetwork(self.lr, n_actions=n_actions, input_dims=input_dims, fc1_dims=256, fc2_dims=256)
+        self.Q_eval = DeepQNetwork(self.lr, n_actions=n_actions, input_dims=input_dims, fc1_dims=10, fc2_dims=10)
+        self.Q_next = DeepQNetwork(self.lr, n_actions=n_actions, input_dims=input_dims, fc1_dims=10, fc2_dims=10)
 
         self.Q_next.load_state_dict(self.Q_eval.state_dict())
         self.Q_next.eval()
@@ -29,7 +32,7 @@ class DQNAgent(Agent):
         else:
             self.memory = ReplayMemory(max_mem_size, input_dims)
 
-        self.eps_strategy = EpsilonGreedyStrategy(epsilon, eps_end, eps_dec)
+        self.action_selection_strategy = EpsilonGreedyStrategy(epsilon, eps_end, eps_dec)
 
         if net_state_dict is not None:
             self.Q_eval.load_state_dict(net_state_dict)
@@ -40,20 +43,23 @@ class DQNAgent(Agent):
             self.Q_eval.optimizer.load_state_dict(optimizer_state_dict)
 
     def choose_action(self, observation):
-        if np.random.random() >= self.eps_strategy.get_epsilon():
-            state = T.tensor([observation]).to(self.Q_eval.device)
+        if np.random.random() >= self.action_selection_strategy.get_epsilon():
+            state = T.tensor(self.from_state_to_input_vector(observation)).to(self.Q_eval.device)
             actions = self.Q_eval.forward(state)
             action = T.argmax(actions).item()
         else:
             action = np.random.choice(self.action_space)
+        self.action_selection_strategy.update_epsilon()
 
         return action
 
     def learn(self, observation, action, reward, new_observation, done):
 
-        self.memory.store_transitions(observation, action, reward, new_observation, done)
+        obs_vector = self.from_state_to_input_vector(observation)
+        new_obs_vector = self.from_state_to_input_vector(new_observation)
+        self.memory.store_transitions(obs_vector, action, reward, new_obs_vector, done)
 
-        if self.memory.can_provide_sample(self.batch_size):
+        if not self.memory.can_provide_sample(self.batch_size):
             return
 
         self.Q_eval.optimizer.zero_grad()
@@ -79,9 +85,8 @@ class DQNAgent(Agent):
             self.Q_next.load_state_dict(self.Q_eval.state_dict())
 
     @staticmethod
-    def load_agent(load_state_path, n_actions, n_observations):
-        models_directory = 'saved_models'
-        loaded_state = T.load(f"{models_directory}/{load_state_path}")
+    def load_static(load_state_path, n_actions, n_observations):
+        loaded_state = T.load(load_state_path)
 
         batch_size_dqn = loaded_state['batch_size']
         gamma_dqn = loaded_state['gamma']
@@ -95,3 +100,38 @@ class DQNAgent(Agent):
                          replay_memory=replay_memory_dqn, net_state_dict=net_state_dict_dqn,
                          optimizer_state_dict=optimizer_state_dict_dqn)
         return agent
+
+    def load(self, load_state_path):
+        loaded_state = T.load(load_state_path)
+        self.memory = loaded_state['replay_memory']
+        self.action_selection_strategy = EpsilonGreedyStrategy(loaded_state['epsilon'],
+                                                               loaded_state['eps_min'],
+                                                               loaded_state['eps_dec'])
+        self.Q_eval.load_state_dict(loaded_state['state_dict'])
+        self.Q_next.load_state_dict(loaded_state['state_dict'])
+        self.Q_next.eval()
+        self.Q_eval.optimizer.load_state_dict(loaded_state['optimizer'])
+        self.lr = loaded_state['lr']
+        self.gamma = loaded_state['gamma']
+        self.replace_target = loaded_state['replace_target']
+
+    def save(self, save_path):
+        state = {
+            'state_dict': self.Q_eval.state_dict(),
+            'optimizer': self.Q_eval.optimizer.state_dict(),
+            'gamma': self.gamma,
+            'epsilon': self.action_selection_strategy.epsilon,
+            'eps_dec': self.action_selection_strategy.eps_dec,
+            'eps_min': self.action_selection_strategy.eps_min,
+            'batch_size': self.batch_size,
+            'lr': self.lr,
+            'max_mem_size': self.memory.mem_size,
+            'replace_target': self.replace_target,
+            'replay_memory': self.memory,
+
+        }
+        T.save(state, save_path)
+
+    @abstractmethod
+    def from_state_to_input_vector(self, state):
+        pass

@@ -1,30 +1,11 @@
-from rl_alg.q_agent import QAgent
+from agent import Agent
 from gui.manual_pygame_agent import QuitException
 from rl_alg.epsilon_greedy_strategy import EpsilonGreedyStrategy
 from time import sleep
 import numpy as np
 import matplotlib.pyplot as plt
 
-import pygame
-from pygame.locals import (
-    KEYDOWN,
-    K_ESCAPE,
-    K_q,
-    K_p,
-    QUIT,
-)
-
-red = (153, 0, 0)
-white = (255, 255, 255)
-black = (0, 0, 0)
-brown = (102, 51, 0)
-blue = (0, 128, 255)
-green = (0, 153, 0)
-
-FIELD_SIZE_X = 150
-FIELD_SIZE_Y = 150
-SCREEN_WIDTH = 1000
-SCREEN_HEIGHT = 600
+from pygame_config import *
 
 
 def key_logic(auto_mode, done):
@@ -48,14 +29,14 @@ def key_logic(auto_mode, done):
     return key_pressed, running_episode, last_episode, auto_mode
 
 
-def episode(screen, env, agent, max_ep_len, i_episode, auto=False, render=True):
+def episode(screen, env, agent: Agent, max_ep_len, i_episode, auto=False, render=True):
     observation = env.reset_env()
 
     if agent.manual_action:
         auto = False
 
     if render:
-        screen.fill(white)
+        screen.fill(WHITE)
         instruction_string = [f"Episode {i_episode}","Goal: step onto gold",
                               "Instruction:", "q | ESC - terminate program"]
         if agent.manual_action:
@@ -63,7 +44,10 @@ def episode(screen, env, agent, max_ep_len, i_episode, auto=False, render=True):
         if not auto:
             instruction_string += ["Press any key"]
         msg = instruction_string
-        env.render(screen, msg, agent.q_table)
+        if hasattr(agent, 'q_table'):
+            env.render(screen, msg, agent.q_table)
+        else:
+            env.render(screen, msg)
 
     n_steps = 0
     running_episode = True
@@ -110,16 +94,21 @@ def episode(screen, env, agent, max_ep_len, i_episode, auto=False, render=True):
                 while not key_pressed:
                     key_pressed, running_episode, last_episode, auto = key_logic(auto, done)
                     sleep(0.05)
-            env.render(screen, msg, agent.q_table)
+
+            if hasattr(agent, 'q_table'):
+                env.render(screen, msg, agent.q_table)
+            else:
+                env.render(screen, msg)
         else:
             if done:
                 running_episode = False
     return total_reward, n_steps, not last_episode, auto
 
 
-def main_pygame2(env, agent, max_ep_len=100, save_path=None, render=False):
+def main_pygame2(env, agent, max_ep_len=100, save_path=None, render=False,
+                 num_episodes=1000, info_after_episodes=50):
 
-    if not isinstance(agent, QAgent):
+    if not isinstance(agent, Agent):
         raise ValueError('Unsupported agent type.')
 
     if render:
@@ -136,16 +125,23 @@ def main_pygame2(env, agent, max_ep_len=100, save_path=None, render=False):
     running = True
     total_rewards = []
     average_rewards = []
+    best_average_rew = -np.inf
     n_steps = []
     while running:
         tr, ns, running, auto_end = episode(screen, env, agent, max_ep_len, i_episode, auto_end, render)
         total_rewards.append(tr)
-        average_rewards.append(np.mean(total_rewards[-10:]))
+        avr_rew = np.mean(total_rewards[-10:])
+        average_rewards.append(avr_rew)
         n_steps.append(ns)
+        if avr_rew > best_average_rew:
+            best_average_rew = avr_rew
+            if save_path is not None:
+                agent.save(save_path + '_best')
+            print(f"After {i_episode} episodes, new best last 10 ep. avg: {avr_rew}")
         i_episode += 1
-        if i_episode % 10 == 0:
-            print(f"After {i_episode} episodes. Last 10 avg total_rewards: {average_rewards[-1]}")
-        if i_episode == 1000:
+        if i_episode % info_after_episodes == 0:
+            print(f"After {i_episode} episodes. Last 10 avg total_rewards: {avr_rew}")
+        if i_episode == num_episodes:
             break
 
     if len(average_rewards) > 10:
@@ -155,4 +151,5 @@ def main_pygame2(env, agent, max_ep_len=100, save_path=None, render=False):
         plt.show()
 
     if save_path is not None:
-        agent.save_q_table(save_path)
+        agent.save(save_path)
+

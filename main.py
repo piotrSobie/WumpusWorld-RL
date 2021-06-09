@@ -16,6 +16,7 @@ from rl_alg.dqn.dqn_alg import dqn_algorithm
 from rl_alg.dqn.test_agent import test_agent_dqn
 from rl_alg.dqn.dqn_default_params import DqnDefaultParams
 from rl_alg.q_agent import QAgent
+from rl_alg.dqn.dqn_agent import DQNAgent
 
 import argparse
 import time
@@ -183,10 +184,33 @@ if __name__ == '__main__':
     time.sleep(time_for_reading_set_parameters)
 
     if args.env == "lake":
-        agent = QAgent(16, 4, manual_action= mode=="manual")
+        if mode == "dqn":
+            import numpy as np
+            class FrozenLakeDQNAgent(DQNAgent):
+                def __init__(self, *args, **kwargs):
+                    super().__init__(*args, **kwargs)
+                    self.eye = np.eye(16, dtype=np.float32)
+
+                def from_state_to_input_vector(self, state):
+                    return self.eye[state]
+
+            agent = FrozenLakeDQNAgent(16, 4)
+            save_path = 'dqn_agent'
+            num_episodes = 2000
+        else:
+            class FrozenLakeQAgent(QAgent):
+                def from_state_to_idx(self, state):
+                    return state
+            agent = FrozenLakeQAgent(16, 4, manual_action= mode=="manual")
+            save_path = 'q_table'
+            num_episodes = 1000
+
         if state_path is not None:
             agent.load(state_path)
-        main_pygame2(examined_env, agent, save_path='q_table', render=args.render)
+
+        main_pygame2(examined_env, agent, save_path=save_path, render=args.render,
+                     num_episodes=num_episodes)
+
     elif mode == "manual":
         if args.env == "lv1" or args.env == "lake":
             agent = Lv1ManualPygameAgent()
@@ -220,6 +244,6 @@ if __name__ == '__main__':
             test_agent_dqn(examined_env, load_state_path=state_path)
         else:   # test-gui
             # # load agent from file
-            agent = DQNAgent.load_agent(state_path, examined_env.action_space_n,
-                                        examined_env.dqn_observation_state_number)
+            agent = DQNAgent.load(state_path, examined_env.action_space_n,
+                                  examined_env.dqn_observation_state_number)
             main_pygame(examined_env, agent, show_whole_map)

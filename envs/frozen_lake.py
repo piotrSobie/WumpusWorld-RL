@@ -1,22 +1,7 @@
 import random
 import numpy as np
 
-import pygame
-from pygame.locals import (
-    RLEACCEL,
-)
-
-red = (153, 0, 0)
-white = (255, 255, 255)
-black = (0, 0, 0)
-brown = (102, 51, 0)
-blue = (0, 128, 255)
-green = (0, 153, 0)
-
-FIELD_SIZE_X = 150
-FIELD_SIZE_Y = 150
-SCREEN_WIDTH = 1000
-SCREEN_HEIGHT = 600
+from pygame_config import *
 
 
 # 4x4 constant grid world
@@ -153,21 +138,21 @@ class FrozenLake:
 
     def render(self, screen, text, q_values=None):
         if not self.assets:
-            self.assets = self.load_assets()
+            self.assets = load_assets()
 
-        screen.fill(white)
+        screen.fill(WHITE)
 
         for i in range(len(self.grid_world)):
             for j in range(len(self.grid_world[i])):
                 if self.grid_world[i][j] == self.regular_field:
-                    pygame.draw.rect(screen, brown, pygame.Rect(j * FIELD_SIZE_X, i * FIELD_SIZE_Y,
+                    pygame.draw.rect(screen, BROWN, pygame.Rect(j * FIELD_SIZE_X, i * FIELD_SIZE_Y,
                                                                 FIELD_SIZE_X, FIELD_SIZE_Y))
                 # elif self.grid_world[i][j] == self.visited_field:
                 #     pygame.draw.rect(screen, green, pygame.Rect(j * FIELD_SIZE_X, i * FIELD_SIZE_Y,
                 #                                                 FIELD_SIZE_X, FIELD_SIZE_Y))
                 elif self.grid_world[i][j] == self.gold_field:
                     screen.blit(self.assets['gold'], (j * FIELD_SIZE_X, i * FIELD_SIZE_Y,
-                                                 FIELD_SIZE_X, FIELD_SIZE_Y))
+                                                      FIELD_SIZE_X, FIELD_SIZE_Y))
                 elif self.grid_world[i][j] == self.pit_field:
                     screen.blit(self.assets['pit'], (j * FIELD_SIZE_X, i * FIELD_SIZE_Y, FIELD_SIZE_X, FIELD_SIZE_Y))
 
@@ -176,31 +161,33 @@ class FrozenLake:
                 #
 
                 best = None
-                if q_values is not None and (self.grid_world[i][j] == self.regular_field or \
-                        self.grid_world[i][j] == self.visited_field):
+                if q_values is not None and (self.grid_world[i][j] == self.regular_field or
+                                             self.grid_world[i][j] == self.visited_field):
 
                     state = i*4+j
-                    sorted = np.argsort(q_values[state])
-                    if q_values[state, sorted[3]] > q_values[state, sorted[2]]: # there is a clear best action
-                        best = sorted[3]
+                    sorted_actions = np.argsort(q_values[state])
+                    if q_values[state, sorted_actions[3]] > q_values[state, sorted_actions[2]]:  # there is a clear best action
+                        best = sorted_actions[3]
 
                     arrows = {0: self.assets['arrow_up'],
                               1: self.assets['arrow_down'],
                               2: self.assets['arrow_right'],
                               3: self.assets['arrow_left']}
                     if best is not None:
-                        screen.blit(arrows[best], (j * FIELD_SIZE_X + FIELD_SIZE_X//4, i * FIELD_SIZE_Y + FIELD_SIZE_Y//4, FIELD_SIZE_X//2, FIELD_SIZE_Y//2))
+                        screen.blit(arrows[best], (j * FIELD_SIZE_X + FIELD_SIZE_X//4,
+                                                   i * FIELD_SIZE_Y + FIELD_SIZE_Y//4,
+                                                   FIELD_SIZE_X//2, FIELD_SIZE_Y//2))
 
                 # draw agent
                 if (i == self.agentPosXY[0]) & (j == self.agentPosXY[1]):
                     screen.blit(self.assets['agent'],
                                 (j * FIELD_SIZE_X, i * FIELD_SIZE_Y, FIELD_SIZE_X, FIELD_SIZE_Y))
 
-                pygame.draw.rect(screen, blue, pygame.Rect(j * FIELD_SIZE_X, i * FIELD_SIZE_Y,
+                pygame.draw.rect(screen, BLUE, pygame.Rect(j * FIELD_SIZE_X, i * FIELD_SIZE_Y,
                                                            FIELD_SIZE_X, FIELD_SIZE_Y), 5)
 
                 # draw q-values at the edges of each field
-                if q_values is not None and (self.grid_world[i][j] == self.regular_field or \
+                if q_values is not None and (self.grid_world[i][j] == self.regular_field or
                                              self.grid_world[i][j] == self.visited_field):
 
                     positions = {0: (j * FIELD_SIZE_X + FIELD_SIZE_X//2 - 20, i * FIELD_SIZE_Y + 7),
@@ -209,58 +196,12 @@ class FrozenLake:
                                  3: (j * FIELD_SIZE_X + 7, i * FIELD_SIZE_Y + FIELD_SIZE_Y//2 - 8)}
 
                     for a in range(4):
-                        color = green if best is not None and a == best else black
+                        color = GREEN if best is not None and a == best else BLACK
                         msg = self.assets['font'].render(f"{q_values[i*4+j, a]:04.2f}", False, color)
                         screen.blit(msg, positions[a])
 
         for t in range(len(text)):
-            msg = self.assets['font'].render(text[t], False, black)
+            msg = self.assets['font'].render(text[t], False, BLACK)
             screen.blit(msg, (FIELD_SIZE_X * len(self.grid_world[0]) + 10, t * 25))
 
         pygame.display.flip()
-
-        return
-
-    @staticmethod
-    def load_assets():
-        assets = {}
-
-        pit_img = pygame.image.load("assets/pit_img.png").convert()
-        pit_img = pygame.transform.scale(pit_img, (FIELD_SIZE_X, FIELD_SIZE_Y))
-        assets['pit'] = pit_img
-
-        gold_img = pygame.image.load("assets/gold_img.png").convert()
-        gold_img = pygame.transform.scale(gold_img, (FIELD_SIZE_X, FIELD_SIZE_Y))
-        assets['gold'] = gold_img
-
-        agent_img = pygame.image.load("assets/agent_img.png").convert()
-        agent_img = pygame.transform.scale(agent_img, (FIELD_SIZE_X, FIELD_SIZE_Y))
-        agent_img.set_colorkey(black, RLEACCEL)
-        assets['agent'] = agent_img
-
-        agent_img_left = pygame.image.load("assets/arrow_img2.png").convert_alpha()
-        agent_img_left = pygame.transform.scale(agent_img_left, (FIELD_SIZE_X//2, FIELD_SIZE_Y//2))
-        assets['arrow_left'] = agent_img_left
-
-        agent_img_down = pygame.image.load("assets/arrow_img2.png").convert_alpha()
-        agent_img_down = pygame.transform.scale(agent_img_down, (FIELD_SIZE_X//2, FIELD_SIZE_Y//2))
-        agent_img_down = pygame.transform.rotate(agent_img_down, 90)
-        assets['arrow_down'] = agent_img_down
-
-        agent_img_right = pygame.image.load("assets/arrow_img2.png").convert_alpha()
-        agent_img_right = pygame.transform.scale(agent_img_right, (FIELD_SIZE_X//2, FIELD_SIZE_Y//2))
-        agent_img_right = pygame.transform.rotate(agent_img_right, 180)
-        assets['arrow_right'] = agent_img_right
-
-        agent_img_up = pygame.image.load("assets/arrow_img2.png").convert_alpha()
-        agent_img_up = pygame.transform.scale(agent_img_up, (FIELD_SIZE_X//2, FIELD_SIZE_Y//2))
-        agent_img_up = pygame.transform.rotate(agent_img_up, 270)
-        assets['arrow_up'] = agent_img_up
-
-        cave_entry_img = pygame.image.load("assets/cave_entry_img.png").convert()
-        cave_entry_img = pygame.transform.scale(cave_entry_img, (FIELD_SIZE_X, FIELD_SIZE_Y))
-        assets['cave_entry'] = cave_entry_img
-
-        assets['font'] = pygame.font.SysFont('Times New Roman', 18)
-
-        return assets

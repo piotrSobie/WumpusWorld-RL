@@ -37,4 +37,4 @@ class ReplayMemory:
         return state_batch, new_state_batch, action_batch, reward_batch, terminal_batch
 
     def can_provide_sample(self, batch_size):
-        return self.mem_counter < batch_size
+        return self.mem_counter >= batch_size
