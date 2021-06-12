@@ -1,466 +1,398 @@
 import random
 import numpy as np
+from typing import NamedTuple, List
+from enum import Enum
+from pygame_config import *
 
 
-# 4x4 randomized grid world
-# agent can take actions (6): move forward, turn left, turn right, take gold, shoot, climb out of the cave
-# agent can detect stench, breeze, bump (if he walks into a wall), glitter
-# states(86) = array with 0 or 1: [direction(2) + bump(1) + scream(1) + if room visited(16) + stench(16) + breeze(16) +
-# + glitter(16) + where is agent(16) + has gold(1) + has arrow(1)]
-class WumpusWorldLv4:
-    def __init__(self, number_of_wumpuses_=1, number_of_pits_=3, number_of_golds_=1):
-        # move forward, turn left, turn right, take gold, shoot, climb out of the cave
-        self.action_space = [0, 1, 2, 3, 4, 5]
-        self.action_space_n = len(self.action_space)
+class Action(Enum):
+    FORWARD=0; TURN_LEFT=1; TURN_RIGHT=2; TAKE_GOLD=3; SHOOT=4; CLIMB=5
 
-        self.wumpus_field = "W"
-        self.pit_field = "P"
-        self.gold_field = "G"
-        self.regular_field = "F"
-        self.visited_field = "V"
-        self.agent_field_turned_up = u'\u2191'
-        self.agent_field_turned_right = u'\u2192'
-        self.agent_field_turned_down = u'\u2193'
-        self.agent_field_turned_left = u'\u2190'
 
-        self.cave_entry_x = 3
-        self.cave_entry_y = 0
-        self.wumpus_pos_x = 1
-        self.wumpus_pos_y = 0
-        self.gold_pos_x = 0
-        self.gold_pos_y = 3
+class ActionDesc(NamedTuple):
+    info: str
+    cost: float
 
-        self.random_grid = False
 
-        # 0 - up, 1 - right, 2 - down, 3 - left
-        self.agent_direction = 1
-        # 1 - has item, 0 - doesn't have item
-        self.arrow = 1
-        self.gold = 0
-        # whether or not the last move forward resulted in a bump, 0 - no, 1 - yes
-        self.bump = 0
-        # whether or not there has been a scream, 0 - no, 1 - yes
-        self.scream = 0
-        # whether or not the room was already visited, 0 - no, 1 - yes
-        self.visited_rooms = [[0, 0, 0, 0],
-                              [0, 0, 0, 0],
-                              [0, 0, 0, 0],
-                              [0, 0, 0, 0]]
-        # whether or not the room has stench, 0 - no, 1 - yes
-        self.stench_rooms = [[0, 0, 0, 0],
-                             [0, 0, 0, 0],
-                             [0, 0, 0, 0],
-                             [0, 0, 0, 0]]
-        # whether or not the room has breeze, 0 - no, 1 - yes
-        self.breeze_rooms = [[0, 0, 0, 0],
-                             [0, 0, 0, 0],
-                             [0, 0, 0, 0],
-                             [0, 0, 0, 0]]
-        # whether or not the room has glitter, 0 - no, 1 - yes
-        self.glitter_rooms = [[0, 0, 0, 0],
-                              [0, 0, 0, 0],
-                              [0, 0, 0, 0],
-                              [0, 0, 0, 0]]
-        # whether or not the room has glitter, 0 - no, 1 - yes
-        self.agent_pos = [[0, 0, 0, 0],
-                          [0, 0, 0, 0],
-                          [0, 0, 0, 0],
-                          [0, 0, 0, 0]]
+actions = {
+    Action.FORWARD: ActionDesc("forward", -0.1),
+    Action.TURN_LEFT: ActionDesc("turn left", -5),
+    Action.TURN_RIGHT: ActionDesc("turn right", -5),
+    Action.TAKE_GOLD: ActionDesc("take gold", -20),
+    Action.SHOOT: ActionDesc("shoot", -20),
+    Action.CLIMB: ActionDesc("climb out", -20)}
 
-        self.visited_rooms[self.cave_entry_x][self.cave_entry_y] = 1
-        self.agent_pos[self.cave_entry_x][self.cave_entry_y] = 1
 
-        self.stench_string = "stench "
-        self.breeze_string = "breeze "
-        self.glitter_string = "glitter "
-        self.bump_string = "bump "
-        self.scream_string = "scream "
+class Reward(Enum):
+    LEFT_WITH_GOLD=0; TOOK_GOLD=1; DEATH_BY_WUMPUS=2; DEATH_BY_PIT=3
+    WUMPUS_KILLED=4; BUMP=5; NOT_VISITED_BEFORE=6
+
+
+class RewardDesc(NamedTuple):
+    info: str
+    reward: float
+
+
+rewards = {
+    Reward.LEFT_WITH_GOLD: RewardDesc("Left with gold!", 1000),
+    Reward.TOOK_GOLD: RewardDesc('Gold taken!', 500),
+    Reward.DEATH_BY_WUMPUS: RewardDesc('Killed by wumpus!', -1000),
+    Reward.DEATH_BY_PIT: RewardDesc('Killed by pit!', -1000),
+    Reward.WUMPUS_KILLED: RewardDesc('Wumpus killed!', 100),
+    Reward.BUMP: RewardDesc('Bump!', -5),
+    Reward.NOT_VISITED_BEFORE: RewardDesc('New place', 5)}
+
+
+class FieldType(Enum):
+    WUMPUS="W"; PIT="P"; GOLD="G"; REGULAR=" "; VISITED="."; AGENT="A"
+
+
+field_to_asset_key = {
+    FieldType.WUMPUS: 'wumpus',
+    FieldType.GOLD: 'gold',
+    FieldType.REGULAR: 'regular',
+
+}
+
+
+CAVE_ENTRY_X = 3; CAVE_ENTRY_Y = 0
+
+
+class GridWorld:
+    def __init__(self, random_grid=True, n_wumpuses=1, n_golds=1, n_pits=3):
+        self.objects: List[List[FieldType]] = self.get_random_obj_grid(n_wumpuses, n_golds, n_pits)\
+            if random_grid else self. get_stable_obj_grid()
+        self.shape = (len(self.objects), len(self.objects[0]))
+        self.breezes = np.zeros(self.shape)
+        self.stenches = np.zeros(self.shape)
+        self.visited = np.zeros(self.shape)
+        self.fill_senses_grids()
+
+    @staticmethod
+    def get_random_obj_grid(n_wumpuses, n_golds, n_pits):
+        size_x = 4
+        size_y = 4
+        env = []
+        for _ in range(size_x):
+            env.append([FieldType.REGULAR] * size_y)
+        # noinspection PyTypeChecker
+        env[CAVE_ENTRY_X][CAVE_ENTRY_Y] = ""
+
+        wumpus_nr = n_wumpuses
+        gold_nr = n_golds
+        pit_nr = n_pits
+        while (wumpus_nr > 0) | (gold_nr > 0) | (pit_nr > 0):
+            random_x = random.randint(0, size_x - 1)
+            random_y = random.randint(0, size_y - 1)
+            if wumpus_nr > 0:
+                if env[random_x][random_y] == FieldType.REGULAR:
+                    wumpus_nr -= 1
+                    env[random_x][random_y] = FieldType.WUMPUS
+            elif gold_nr > 0:
+                if env[random_x][random_y] == FieldType.REGULAR:
+                    gold_nr -= 1
+                    env[random_x][random_y] = FieldType.GOLD
+            elif pit_nr > 0:
+                if env[random_x][random_y] == FieldType.REGULAR:
+                    pit_nr -= 1
+                    env[random_x][random_y] = FieldType.PIT
+
+        env[CAVE_ENTRY_X][CAVE_ENTRY_Y] = FieldType.REGULAR
+
+        return env
+
+    @staticmethod
+    def get_stable_obj_grid():
+        env = [[FieldType.REGULAR, FieldType.PIT, FieldType.REGULAR, FieldType.GOLD],
+               [FieldType.WUMPUS, FieldType.REGULAR, FieldType.REGULAR, FieldType.REGULAR],
+               [FieldType.REGULAR, FieldType.REGULAR, FieldType.REGULAR, FieldType.REGULAR],
+               [FieldType.REGULAR, FieldType.REGULAR, FieldType.PIT, FieldType.REGULAR]]
+
+        return env
+
+    def neighbouring_cells(self, x, y):
+        cells = []
+        if x > 0:
+            cells.append((x-1, y))
+        if y > 0:
+            cells.append((x, y-1))
+        if x+1 < self.shape[0]:
+            cells.append((x+1, y))
+        if y+1 < self.shape[1]:
+            cells.append((x, y+1))
+        return cells
+
+    def fill_senses_grids(self):
+        self.breezes *= 0
+        self.stenches *= 0
+        for x, row in enumerate(self.objects):
+            for y, obj in enumerate(row):
+                if obj == FieldType.PIT:
+                    for (nx, ny) in self.neighbouring_cells(x, y):
+                        self.breezes[nx, ny] = 1
+                if obj == FieldType.WUMPUS:
+                    for (nx, ny) in self.neighbouring_cells(x, y):
+                        self.stenches[nx, ny] = 1
+
+    def at_xy(self, x, y):
+        return self.objects[x][y], self.breezes[x, y], self.stenches[x, y]
+
+
+class Direction(Enum):
+    UP=0; LEFT=1; DOWN=2; RIGHT=3
+
+
+class Sense(Enum):
+    STENCH=0; BREEZE=1; GLITTER=2; BUMP=3; SCREAM=4
+
+
+class AgentState:
+    def __init__(self, start_posx, start_posy, n_arrows, grids: GridWorld):
+        self.pos_x = start_posx
+        self.pos_y = start_posy
+        self.agent_direction = Direction.UP
+        self.gold_taken = False
+        self.arrows_left = n_arrows
+        self.senses = [False] * len(Sense)
+        self.update_senses(grids)
+
+    def update_senses(self, grids: GridWorld, bump=False, scream=False):
+        obj, breeze, stench = grids.at_xy(self.pos_x, self.pos_y)
+        self.senses[Sense.STENCH.value] = stench == 1
+        self.senses[Sense.BREEZE.value] = breeze == 1
+        self.senses[Sense.GLITTER.value] = obj == FieldType.GOLD
+        self.senses[Sense.BUMP.value] = bump
+        self.senses[Sense.SCREAM.value] = scream
+
+    def __str__(self):
+        s = f"Position=({self.pos_x}, {self.pos_y}); Direction={self.agent_direction.name};"
+        s += f"Arrows left={self.arrows_left}; Gold={self.gold_taken};"
+        s += f"Sensing: "
+        for n, v in enumerate(self.senses):
+            if v:
+                s += Sense(n).name + ' '
+        return s
+
+
+class WumpusWorldLv4a:
+
+    def __init__(self, random_grid=True, number_of_wumpuses_=1,
+                 number_of_pits_=3, number_of_golds_=1):
 
         self.number_of_wumpuses = number_of_wumpuses_
         self.number_of_pits = number_of_pits_
         self.number_of_golds = number_of_golds_
+        self.random_grid = random_grid
 
-        self.observation_space_n = None
-        self.dqn_observation_state_number = None
-        self.grid_world = self.get_new_env()
-        self.agentPosXY = [self.cave_entry_x, self.cave_entry_y]
+        self.grids = GridWorld(self.random_grid, self.number_of_wumpuses, self.number_of_golds, self.number_of_pits)
+        self.agent_state = AgentState(CAVE_ENTRY_X, CAVE_ENTRY_Y, self.number_of_wumpuses, self.grids)
 
-        self.living_reward = -1
-        self.arrow_reward = -10
-        self.left_with_gold = 1000
-        self.death_by_wumpus_reward = -1000
-        self.death_by_pit_reward = -1000
-
-        self.wumpus_killed_reward = 0
-        self.took_gold_reward = 500
-        self.turning_reward = -5
-        self.already_visited_reward = 0
-        self.didnt_move_reward = 0
-
-    def get_random_env(self):
-        size_x = 4
-        size_y = 4
-        env = []
-        for _ in range(size_y):
-            env.append([self.regular_field] * size_x)
-        env[self.cave_entry_x][self.cave_entry_y] = ""
-
-        wumpus_nr = self.number_of_wumpuses
-        gold_nr = self.number_of_golds
-        pit_nr = self.number_of_pits
-        while (wumpus_nr > 0) | (gold_nr > 0) | (pit_nr > 0):
-            random_x = random.randint(0, size_x - 1)
-            random_y = random.randint(0, size_y - 1)
-            # wumpus
-            if wumpus_nr > 0:
-                if env[random_x][random_y] == self.regular_field:
-                    wumpus_nr -= 1
-                    env[random_x][random_y] = self.wumpus_field
-                    self.wumpus_pos_x = random_x
-                    self.wumpus_pos_y = random_y
-            # gold
-            elif gold_nr > 0:
-                if env[random_x][random_y] == self.regular_field:
-                    gold_nr -= 1
-                    env[random_x][random_y] = self.gold_field
-                    self.gold_pos_x = random_x
-                    self.gold_pos_y = random_y
-            # pit
-            elif pit_nr > 0:
-                if env[random_x][random_y] == self.regular_field:
-                    pit_nr -= 1
-                    env[random_x][random_y] = self.pit_field
-
-        env[self.cave_entry_x][self.cave_entry_y] = self.regular_field
-
-        return env
-
-    def get_stable_env(self):
-        env = [[self.regular_field, self.pit_field, self.regular_field, self.pit_field],
-               [self.regular_field, self.regular_field, self.pit_field, self.regular_field],
-               [self.regular_field, self.regular_field, self.regular_field, self.regular_field],
-               [self.regular_field, self.regular_field, self.pit_field, self.regular_field]]
-        self.observation_space_n = 0
-        env[self.wumpus_pos_x][self.wumpus_pos_y] = self.wumpus_field
-        env[self.gold_pos_x][self.gold_pos_y] = self.gold_field
-
-        return env
-
-    def get_new_env(self):
-        if self.random_grid:
-            print("New RANDOM grid")
-            env = self.get_random_env()
-        else:
-            print("New STABLE grid")
-            env = self.get_stable_env()
-
-        # states(86) = array with 0 or 1: [direction(2) + bump(1) + scream(1) + if room visited(16) + stench(16)
-        # + breeze(16) + glitter(16) + where is agent(16) + has gold(1) + has arrow(1)]
-        self.observation_space_n = None  # not suitable for q-learn
-        self.dqn_observation_state_number = 86
-
-        return env
-
-    # not used, old idea
-    # convert array into int, for example
-    # [[0,0,1,0], [1,1,1,1], [1,1,1,1], [0,0,0,0]] = int( (0010111111110000) , 2)
-    def array_to_int(self, array):
-        array_str = ""
-        for i in range(len(array)):
-            for j in range(len(array[i])):
-                array_str += str(array[i][j])
-
-        return int(array_str, 2)
-
-    def two_d_to_one_d(self, array):
-        x = np.array(array, dtype=np.float32)
-        x = x.flatten()
-        return x
-
-    # scalar must be 0 or 1
-    def scalar_to_array(self, scalar):
-        x = np.zeros(1, dtype=np.float32)
-        x[0] = scalar
-        return x
-
-    # direction range is 0-3 so we need array with 11, 10, 01 or 00
-    def direction_to_array(self):
-        binary_nr = "{0:b}".format(self.agent_direction)
-        if len(binary_nr) < 2:
-            binary_nr = '0' + binary_nr
-        binary_nr = binary_nr[0] + ' ' + binary_nr[1]
-        arr = np.fromstring(binary_nr, dtype=np.float32, sep=' ')
-        return arr
-
-    def get_state(self):
-        self.use_senses()
-
-        state = np.concatenate((self.direction_to_array(), self.scalar_to_array(self.bump),
-                                self.scalar_to_array(self.scream), self.two_d_to_one_d(self.visited_rooms),
-                                self.two_d_to_one_d(self.stench_rooms), self.two_d_to_one_d(self.breeze_rooms),
-                                self.two_d_to_one_d(self.glitter_rooms), self.two_d_to_one_d(self.agent_pos),
-                                self.scalar_to_array(self.gold), self.scalar_to_array(self.arrow)))
-
-        return state
+        # for rendering
+        self.assets = None
 
     def reset_env(self):
-        self.grid_world = self.get_new_env()
-        self.agentPosXY = [self.cave_entry_x, self.cave_entry_y]
+        self.grids = GridWorld(self.random_grid, self.number_of_wumpuses, self.number_of_golds, self.number_of_pits)
+        self.agent_state = AgentState(CAVE_ENTRY_X, CAVE_ENTRY_Y, self.number_of_wumpuses, self.grids)
 
-        self.agent_direction = 1
-        self.bump = 0
-        self.scream = 0
-        self.gold = 0
-        self.arrow = 1
-        self.visited_rooms = [[0, 0, 0, 0],
-                              [0, 0, 0, 0],
-                              [0, 0, 0, 0],
-                              [0, 0, 0, 0]]
-        self.stench_rooms = [[0, 0, 0, 0],
-                             [0, 0, 0, 0],
-                             [0, 0, 0, 0],
-                             [0, 0, 0, 0]]
-        self.breeze_rooms = [[0, 0, 0, 0],
-                             [0, 0, 0, 0],
-                             [0, 0, 0, 0],
-                             [0, 0, 0, 0]]
-        self.glitter_rooms = [[0, 0, 0, 0],
-                              [0, 0, 0, 0],
-                              [0, 0, 0, 0],
-                              [0, 0, 0, 0]]
-        self.agent_pos = [[0, 0, 0, 0],
-                          [0, 0, 0, 0],
-                          [0, 0, 0, 0],
-                          [0, 0, 0, 0]]
-        self.visited_rooms[self.cave_entry_x][self.cave_entry_y] = 1
-        self.agent_pos[self.cave_entry_x][self.cave_entry_y] = 1
+    def get_state(self):
+        return self.agent_state
 
-        return self.get_state()
+    def try_to_kill_wumpus_at_xy(self, x, y):
+        if self.grids.objects[x][y] == FieldType.WUMPUS:
+            self.grids.objects[x][y] = FieldType.REGULAR
+            self.grids.fill_senses_grids()
+            return True
+        else:
+            return False
 
-    def random_action(self):
-        return random.choice(self.action_space)
+    def step(self, action_):
+        action = Action(action_)
 
-    def step(self, action):
-        if action not in self.action_space:
-            raise Exception("Invalid action")
+        reward = actions[action].cost
+        info = [f"Agent action: {actions[action].info}."]
 
-        reward = self.living_reward
-        info = None
+        self.grids.visited[self.agent_state.pos_x, self.agent_state.pos_y] = 1
+
+        bump = False
+        scream = False
         done = False
         game_won = False
-        self.bump = 0
 
-        startPosX = self.agentPosXY[0]
-        startPosY = self.agentPosXY[1]
-
-        if self.visited_rooms[self.agentPosXY[0]][self.agentPosXY[1]] == 1:
-            reward += self.already_visited_reward
-
-        self.agent_pos[self.agentPosXY[0]][self.agentPosXY[1]] = 0
-
-        if self.grid_world[self.agentPosXY[0]][self.agentPosXY[1]] == self.regular_field:
-            self.grid_world[self.agentPosXY[0]][self.agentPosXY[1]] = self.visited_field
-
-        # move forward
-        if action == 0:
-            info = "Agent choose to move forward - "
-
-            # up
-            if self.agent_direction == 0:
-                self.agentPosXY[0] -= 1
-                if self.agentPosXY[0] < 0:
-                    self.bump = 1
-                    self.agentPosXY[0] = 0
-                info += "up"
-            # right
-            elif self.agent_direction == 1:
-                self.agentPosXY[1] += 1
-                if self.agentPosXY[1] > len(self.grid_world[self.agentPosXY[0]]) - 1:
-                    self.bump = 1
-                    self.agentPosXY[1] = len(self.grid_world[self.agentPosXY[0]]) - 1
-                info += "right"
-            # down
-            elif self.agent_direction == 2:
-                self.agentPosXY[0] += 1
-                if self.agentPosXY[0] > len(self.grid_world) - 1:
-                    self.bump = 1
-                    self.agentPosXY[0] = len(self.grid_world) - 1
-                info += "down"
-            # left
-            elif self.agent_direction == 3:
-                self.agentPosXY[1] -= 1
-                if self.agentPosXY[1] < 0:
-                    self.bump = 1
-                    self.agentPosXY[1] = 0
-                info += "left"
+        if action == Action.FORWARD:
+            if self.agent_state.agent_direction == Direction.UP:
+                self.agent_state.pos_x -= 1
+                if self.agent_state.pos_x < 0:
+                    self.agent_state.pos_x = 0
+                    bump = True
+            elif self.agent_state.agent_direction == Direction.RIGHT:
+                self.agent_state.pos_y += 1
+                if self.agent_state.pos_y >= self.grids.shape[1]:
+                    bump = True
+                    self.agent_state.pos_y -= 1
+            elif self.agent_state.agent_direction == Direction.DOWN:
+                self.agent_state.pos_x += 1
+                if self.agent_state.pos_x >= self.grids.shape[0]:
+                    bump = True
+                    self.agent_state.pos_x -= 1
+            elif self.agent_state.agent_direction == Direction.LEFT:
+                self.agent_state.pos_y -= 1
+                if self.agent_state.pos_y < 0:
+                    bump = True
+                    self.agent_state.pos_y = 0
             else:
                 raise Exception("Invalid agent direction")
-
             # check if met Wumpus or fell into pit
-            if self.grid_world[self.agentPosXY[0]][self.agentPosXY[1]] == self.wumpus_field:
+            if self.grids.objects[self.agent_state.pos_x][self.agent_state.pos_y] == FieldType.WUMPUS:
                 done = True
-                reward += self.death_by_wumpus_reward
-                info += ". Got eaten by Wumpus, you lost"
-            elif self.grid_world[self.agentPosXY[0]][self.agentPosXY[1]] == self.pit_field:
+                reward += rewards[Reward.DEATH_BY_WUMPUS].reward
+                info += [rewards[Reward.DEATH_BY_WUMPUS].info]
+            elif self.grids.objects[self.agent_state.pos_x][self.agent_state.pos_y] == FieldType.PIT:
                 done = True
-                reward += self.death_by_pit_reward
-                info += ". Fell into pit, you lost"
+                reward += rewards[Reward.DEATH_BY_PIT].reward
+                info += [rewards[Reward.DEATH_BY_PIT].info]
+            else:
+                if bump:
+                    reward += rewards[Reward.BUMP].reward
+                    info += [rewards[Reward.BUMP].info]
+                if self.grids.visited[self.agent_state.pos_x][self.agent_state.pos_y] == 0:
+                    reward += rewards[Reward.NOT_VISITED_BEFORE].reward
+                    info += [rewards[Reward.NOT_VISITED_BEFORE].info]
+                if self.grids.objects[self.agent_state.pos_x][self.agent_state.pos_y] == FieldType.GOLD:
+                    print('Stepped into GOLD!')
 
-        # turn left
-        elif action == 1:
-            self.agent_direction = (self.agent_direction - 1) % 4
-            info = "Agent turned left"
-            reward += self.turning_reward
-        # turn right
-        elif action == 2:
-            self.agent_direction = (self.agent_direction + 1) % 4
-            info = "Agent turned right"
-            reward += self.turning_reward
-        # take gold
-        elif action == 3:
-            if self.grid_world[self.agentPosXY[0]][self.agentPosXY[1]] == self.gold_field:
-                self.grid_world[self.agentPosXY[0]][self.agentPosXY[1]] = self.visited_field
-                self.gold = 1
-                info = "Agent took gold"
+        elif action == Action.TURN_LEFT:
+            self.agent_state.agent_direction = Direction((self.agent_state.agent_direction.value + 1) % 4)
+        elif action == Action.TURN_RIGHT:
+            self.agent_state.agent_direction = Direction((self.agent_state.agent_direction.value - 1) % 4)
+        elif action == Action.TAKE_GOLD:
+            if self.grids.objects[self.agent_state.pos_x][self.agent_state.pos_y] == FieldType.GOLD:
+                self.grids.objects[self.agent_state.pos_x][self.agent_state.pos_y] = FieldType.REGULAR
+                self.agent_state.gold_taken = True
+                print('TOOK GOLD!')
+                reward += rewards[Reward.TOOK_GOLD].reward
+                info += [rewards[Reward.TOOK_GOLD].info]
                 # uncomment 2 lines below to finish game after taking gold
-                # done = True
-                # game_won = True
-                reward += self.took_gold_reward
-            else:
-                info = "Agent attempted to take gold, but there wasn't any"
-        # shoot
-        elif action == 4:
-            if self.arrow == 1:
-                self.arrow = 0
-                reward += self.arrow_reward
-                info = "Arrow was used."
-                # up
-                if self.agent_direction == 0:
-                    if (self.agentPosXY[1] == self.wumpus_pos_y) & (self.agentPosXY[0] > self.wumpus_pos_x):
-                        info += " Wumpus is dead"
-                        self.scream = 1
-                        self.grid_world[self.wumpus_pos_x][self.wumpus_pos_y] = self.regular_field
-                        reward += self.wumpus_killed_reward
-                # right
-                elif self.agent_direction == 1:
-                    if (self.agentPosXY[0] == self.wumpus_pos_x) & (self.agentPosXY[1] < self.wumpus_pos_y):
-                        info += " Wumpus is dead"
-                        self.scream = 1
-                        self.grid_world[self.wumpus_pos_x][self.wumpus_pos_y] = self.regular_field
-                        reward += self.wumpus_killed_reward
-                # down
-                elif self.agent_direction == 2:
-                    if (self.agentPosXY[1] == self.wumpus_pos_y) & (self.agentPosXY[0] < self.wumpus_pos_x):
-                        info += " Wumpus is dead"
-                        self.scream = 1
-                        self.grid_world[self.wumpus_pos_x][self.wumpus_pos_y] = self.regular_field
-                        reward += self.wumpus_killed_reward
-                # left
-                elif self.agent_direction == 3:
-                    if (self.agentPosXY[0] == self.wumpus_pos_x) & (self.agentPosXY[1] > self.wumpus_pos_y):
-                        info += " Wumpus is dead"
-                        self.scream = 1
-                        self.grid_world[self.wumpus_pos_x][self.wumpus_pos_y] = self.regular_field
-                        reward += self.wumpus_killed_reward
-            else:
-                info = "Arrow no available, nothing happened"
-        # climb out of the cave
-        elif action == 5:
-            if (self.agentPosXY[0] == self.cave_entry_x) & (self.agentPosXY[1] == self.cave_entry_y) & (self.gold == 1):
-                reward += self.left_with_gold
                 done = True
-                info = "You left cave with gold, victory"
                 game_won = True
             else:
-                info = "Can't leave yet"
+                info += ["No gold here."]
+        elif action == Action.SHOOT:
+            wumpus_killed = False
+            if self.agent_state.arrows_left > 0:
+                self.agent_state.arrows_left -= 1
+                if self.agent_state.agent_direction == Direction.UP:
+                    for x in range(self.agent_state.pos_x-1, -1, -1):
+                        if self.try_to_kill_wumpus_at_xy(x, self.agent_state.pos_y):
+                            wumpus_killed = True
+                            break
+                elif self.agent_state.agent_direction == Direction.DOWN:
+                    for x in range(self.agent_state.pos_x + 1, self.grids.shape[0]):
+                        if self.try_to_kill_wumpus_at_xy(x, self.agent_state.pos_y):
+                            wumpus_killed = True
+                            break
+                elif self.agent_state.agent_direction == Direction.LEFT:
+                    for y in range(self.agent_state.pos_y - 1, -1, -1):
+                        if self.try_to_kill_wumpus_at_xy(self.agent_state.pos_x, y):
+                            wumpus_killed = True
+                            break
+                elif self.agent_state.agent_direction == Direction.RIGHT:
+                    for y in range(self.agent_state.pos_y + 1, self.grids.shape[1]):
+                        if self.try_to_kill_wumpus_at_xy(self.agent_state.pos_x, y):
+                            wumpus_killed = True
+                            break
+                if wumpus_killed:
+                    scream = True
+                    reward += rewards[Reward.WUMPUS_KILLED].reward
+                    info += [rewards[Reward.WUMPUS_KILLED].info]
+            else:
+                info += ["Arrow no available, nothing happened."]
+        elif action == Action.CLIMB:
+            if (self.agent_state.pos_x == CAVE_ENTRY_X) & (self.agent_state.pos_y == CAVE_ENTRY_Y)\
+                    & self.agent_state.gold_taken:
+                reward += rewards[Reward.LEFT_WITH_GOLD].reward
+                info += [rewards[Reward.LEFT_WITH_GOLD].info]
+                done = True
+                game_won = True
+            else:
+                info += ["Can't leave yet."]
         else:
             raise Exception("Invalid action")
 
-        self.agent_pos[self.agentPosXY[0]][self.agentPosXY[1]] = 1
-        self.visited_rooms[self.agentPosXY[0]][self.agentPosXY[1]] = 1
+        self.agent_state.update_senses(self.grids, bump, scream)
 
-        if (self.agentPosXY[0] == startPosX) & (self.agentPosXY[1] == startPosY):
-            reward += self.didnt_move_reward
+        return self.agent_state, reward/1000, done, info, game_won
 
-        new_state = self.get_state()
-        return new_state, reward, done, info, game_won
+    def render(self, screen, text):
+        if not self.assets:
+            self.assets = load_assets()
 
-    def use_senses(self):
-        # stench_rooms, breeze_rooms, glitter_rooms, 0 no, 1 yes
+        screen.fill(WHITE)
 
-        # down
-        if self.agentPosXY[0] + 1 <= len(self.grid_world) - 1:
-            # stench
-            if self.grid_world[self.agentPosXY[0] + 1][self.agentPosXY[1]] == self.wumpus_field:
-                self.stench_rooms[self.agentPosXY[0]][self.agentPosXY[1]] = 1
-            # breeze
-            if self.grid_world[self.agentPosXY[0] + 1][self.agentPosXY[1]] == self.pit_field:
-                self.breeze_rooms[self.agentPosXY[0]][self.agentPosXY[1]] = 1
-
-        # up
-        if self.agentPosXY[0] - 1 >= 0:
-            # stench
-            if self.grid_world[self.agentPosXY[0] - 1][self.agentPosXY[1]] == self.wumpus_field:
-                self.stench_rooms[self.agentPosXY[0]][self.agentPosXY[1]] = 1
-            # breeze
-            if self.grid_world[self.agentPosXY[0] - 1][self.agentPosXY[1]] == self.pit_field:
-                self.breeze_rooms[self.agentPosXY[0]][self.agentPosXY[1]] = 1
-
-        # right
-        if self.agentPosXY[1] + 1 <= len(self.grid_world[self.agentPosXY[0]]) - 1:
-            # stench
-            if self.grid_world[self.agentPosXY[0]][self.agentPosXY[1] + 1] == self.wumpus_field:
-                self.stench_rooms[self.agentPosXY[0]][self.agentPosXY[1]] = 1
-            # breeze
-            if self.grid_world[self.agentPosXY[0]][self.agentPosXY[1] + 1] == self.pit_field:
-                self.breeze_rooms[self.agentPosXY[0]][self.agentPosXY[1]] = 1
-
-        # left
-        if self.agentPosXY[1] - 1 >= 0:
-            # stench
-            if self.grid_world[self.agentPosXY[0]][self.agentPosXY[1] - 1] == self.wumpus_field:
-                self.stench_rooms[self.agentPosXY[0]][self.agentPosXY[1]] = 1
-            # breeze
-            if self.grid_world[self.agentPosXY[0]][self.agentPosXY[1] - 1] == self.pit_field:
-                self.breeze_rooms[self.agentPosXY[0]][self.agentPosXY[1]] = 1
-
-        # glitter
-        if self.grid_world[self.agentPosXY[0]][self.agentPosXY[1]] == self.gold_field:
-            self.glitter_rooms[self.agentPosXY[0]][self.agentPosXY[1]] = 1
-        else:
-            self.glitter_rooms[self.agentPosXY[0]][self.agentPosXY[1]] = 0
-
-        # if wumpus was killed
-        if self.scream == 1:
-            self.stench_rooms[self.agentPosXY[0]][self.agentPosXY[1]] = 0
-
-    def get_sensed_string(self):
-        sensed = ""
-        # stench_rooms, breeze_rooms, glitter_rooms, 0 no, 1 yes
-        x = self.agentPosXY[0]
-        y = self.agentPosXY[1]
-        sensed += self.stench_string if self.stench_rooms[x][y] == 1 else ""
-        sensed += self.breeze_string if self.breeze_rooms[x][y] == 1 else ""
-        sensed += self.glitter_string if self.glitter_rooms[x][y] == 1 else ""
-
-        sensed += "nothing" if sensed == "" else ""
-
-        return sensed
-
-    def render_env(self):
-        for i in range(len(self.grid_world)):
-            for j in range(len(self.grid_world[i])):
-                if (i == self.agentPosXY[0]) & (j == self.agentPosXY[1]):
-                    if self.agent_direction == 0:
-                        print(self.agent_field_turned_up, end=" ")
-                    elif self.agent_direction == 1:
-                        print(self.agent_field_turned_right, end=" ")
-                    elif self.agent_direction == 2:
-                        print(self.agent_field_turned_down, end=" ")
-                    elif self.agent_direction == 3:
-                        print(self.agent_field_turned_left, end=" ")
+        for x in range(self.grids.shape[0]):
+            for y in range(self.grids.shape[1]):
+                if (x == self.agent_state.pos_x) and (y == self.agent_state.pos_y):
+                    screen.blit(self.assets[self.agent_state.agent_direction], (y * FIELD_SIZE_X, x * FIELD_SIZE_Y,
+                                                                                FIELD_SIZE_X, FIELD_SIZE_Y))
+                elif (x == CAVE_ENTRY_X) & (y == CAVE_ENTRY_Y):
+                    screen.blit(self.assets['cave_entry'], (y * FIELD_SIZE_X, x * FIELD_SIZE_Y,
+                                                            FIELD_SIZE_X, FIELD_SIZE_Y))
                 else:
-                    print(self.grid_world[i][j], end=" ")
-            print()
+                    obj, _, _ = self.grids.at_xy(x, y)
+                    if obj == FieldType.REGULAR:
+                        color = GREEN if self.grids.visited[x][y] else BROWN
+                        pygame.draw.rect(screen, color, pygame.Rect(y * FIELD_SIZE_X, x * FIELD_SIZE_Y,
+                                                                    FIELD_SIZE_X, FIELD_SIZE_Y))
+                    else: # pit wumpus or gold
+                        screen.blit(self.assets[obj], (y * FIELD_SIZE_X, x * FIELD_SIZE_Y, FIELD_SIZE_X, FIELD_SIZE_Y))
 
-        print(f"The agent senses: {self.get_sensed_string()}")
+                pygame.draw.rect(screen, BLUE, pygame.Rect(y * FIELD_SIZE_X, x * FIELD_SIZE_Y,
+                                                           FIELD_SIZE_X, FIELD_SIZE_Y), 5)
+
+        for t in range(len(text)):
+            msg = self.assets['font'].render(text[t], False, BLACK)
+            screen.blit(msg, (FIELD_SIZE_X * self.grids.shape[1] + 10, t * 25))
+
+        pygame.display.flip()
+
+
+def load_assets():
+    assets = {}
+
+    pit_img = pygame.image.load("assets/pit_img.png").convert()
+    pit_img = pygame.transform.scale(pit_img, (FIELD_SIZE_X, FIELD_SIZE_Y))
+    assets[FieldType.PIT] = pit_img
+
+    wumpus_img = pygame.image.load("assets/wumpus_img.png").convert()
+    wumpus_img = pygame.transform.scale(wumpus_img, (FIELD_SIZE_X, FIELD_SIZE_Y))
+    assets[FieldType.WUMPUS] = wumpus_img
+
+    gold_img = pygame.image.load("assets/gold_img.png").convert()
+    gold_img = pygame.transform.scale(gold_img, (FIELD_SIZE_X, FIELD_SIZE_Y))
+    assets[FieldType.GOLD] = gold_img
+
+    agent_img_left = pygame.image.load("assets/arrow_img2.png").convert_alpha()
+    agent_img_left = pygame.transform.scale(agent_img_left, (FIELD_SIZE_X, FIELD_SIZE_Y))
+    assets[Direction.LEFT] = agent_img_left
+
+    agent_img_down = pygame.image.load("assets/arrow_img2.png").convert_alpha()
+    agent_img_down = pygame.transform.scale(agent_img_down, (FIELD_SIZE_X, FIELD_SIZE_Y))
+    agent_img_down = pygame.transform.rotate(agent_img_down, 90)
+    assets[Direction.DOWN] = agent_img_down
+
+    agent_img_right = pygame.image.load("assets/arrow_img2.png").convert_alpha()
+    agent_img_right = pygame.transform.scale(agent_img_right, (FIELD_SIZE_X, FIELD_SIZE_Y))
+    agent_img_right = pygame.transform.rotate(agent_img_right, 180)
+    assets[Direction.RIGHT] = agent_img_right
+
+    agent_img_up = pygame.image.load("assets/arrow_img2.png").convert_alpha()
+    agent_img_up = pygame.transform.scale(agent_img_up, (FIELD_SIZE_X, FIELD_SIZE_Y))
+    agent_img_up = pygame.transform.rotate(agent_img_up, 270)
+    assets[Direction.UP] = agent_img_up
+
+    cave_entry_img = pygame.image.load("assets/cave_entry_img.png").convert()
+    cave_entry_img = pygame.transform.scale(cave_entry_img, (FIELD_SIZE_X, FIELD_SIZE_Y))
+    assets['cave_entry'] = cave_entry_img
+
+    assets['font'] = pygame.font.SysFont('Times New Roman', 18)
+
+    return assets

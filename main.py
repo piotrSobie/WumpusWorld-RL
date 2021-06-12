@@ -6,6 +6,7 @@ from wumpus_envs.wumpus_env_lv3v1 import WumpusWorldLv3v1
 from wumpus_envs.wumpus_env_lv3v2 import WumpusWorldLv3v2
 from wumpus_envs.wumpus_env_lv3v3 import WumpusWorldLv3v3
 from wumpus_envs.wumpus_env_lv4 import WumpusWorldLv4
+from wumpus_envs.wumpus_env_lv4_a import WumpusWorldLv4a
 from envs.frozen_lake import FrozenLake
 
 from manual_play.manual_play_cmd import manual_play_lv1, manual_play_lv2_plus
@@ -17,6 +18,8 @@ from rl_alg.dqn.test_agent import test_agent_dqn
 from rl_alg.dqn.dqn_default_params import DqnDefaultParams
 from rl_alg.q_agent import QAgent
 from rl_alg.dqn.dqn_agent import DQNAgent
+from rl_alg.dqn.dqn_network import DeepQNetwork
+from experiments.wumpuslv4_dqn_agent import WumpusBasicDQN
 
 import argparse
 import time
@@ -29,7 +32,6 @@ if __name__ == '__main__':
     # q-learn & dqn hyper parameters
     examined_env = None
     mode = None
-    random_grid = True
 
     num_episodes = default_params.NUM_EPISODES
     max_steps_per_episode = default_params.MAX_STEPS_PER_EPISODE
@@ -66,7 +68,7 @@ if __name__ == '__main__':
                                               "dqn, test (with test --state_path must be specified),"
                                               "test-gui", required=True)
     # optional arguments
-    parser.add_argument("--num_episodes", help=f"Number of learning episodes, default={num_episodes}", default=num_episodes)
+    parser.add_argument("--num_episodes", help=f"Number of learning episodes, default={num_episodes}", default=num_episodes, type=int)
     parser.add_argument("--max_steps_per_episode", help=f"Maximum number of steps per episode, "
                                                         f"default={max_steps_per_episode}", default=max_steps_per_episode)
     parser.add_argument("--lr", help=f"Learning rate, should be in <0, 1>, default={learning_rate}", default=learning_rate)
@@ -85,10 +87,11 @@ if __name__ == '__main__':
     parser.add_argument("--memory_size", help=f"Used in DQN, set replay memory size, default={memory_size}", default=memory_size)
     parser.add_argument("--state_path", help=f"Loading state from /saved_models/PATH, PATH must be specified")
     parser.add_argument("--save_every", help=f"Saving checkpoint at specified frequency, default={save_every}", default=save_every)
-    parser.add_argument("--random_grid", help=f"Whether the world is random or constant, default={random_grid}", default=random_grid)
     parser.add_argument("--no_render", help=f"Whether to display pygame", dest='render', action='store_false')
+    parser.add_argument("--no_random_grid", help=f"Whether grid is random or not", dest='random_grid', action='store_false')
 
     parser.set_defaults(render=True)
+    parser.set_defaults(random_grid=True)
 
     args = parser.parse_args()
     exception_msg = "Invalid environment, try python main.py --help"
@@ -104,7 +107,7 @@ if __name__ == '__main__':
     elif args.env == "lv3v3":
         examined_env = WumpusWorldLv3v3()
     elif args.env == "lv4":
-        examined_env = WumpusWorldLv4()
+        examined_env = WumpusWorldLv4a(args.random_grid)
     elif args.env == "lake":
         examined_env = FrozenLake()
     else:
@@ -127,8 +130,6 @@ if __name__ == '__main__':
     show_reward_plot = args.show_reward_plot
     show_games_won_plot = args.show_games_won_plot
 
-    examined_env.random_grid = random_grid
-
     if args.batch_size is not None:
         batch_size = int(args.batch_size)
 
@@ -141,26 +142,10 @@ if __name__ == '__main__':
     if args.save_every is not None:
         save_every = float(args.save_every)
 
-    if args.mode == "manual":
-        mode = "manual"
-    elif args.mode == "manual-cmd":
-        mode = "manual-cmd"
-    elif args.mode == "q-learn":
-        mode = "q-learn"
-    elif args.mode == "dqn":
-        mode = "dqn"
-    elif args.mode == "test":
-        mode = "test"
-    elif args.mode == "test-gui":
-        mode = "test-gui"
-    else:
-        raise Exception(exception_msg)
-
     # print("\nSet parameters:")
     # print("\nQ-learning & DQN parameters:")
     print(f"Env name: {examined_env.__class__.__name__}")
-    # print(f"Grid randomness {examined_env.random_grid}")
-    print(f"Mode: {mode}")
+    print(f"Mode: {args.mode}")
     # print(f"Num episodes: {num_episodes}")
     # print(f"Max steps per episodes: {max_steps_per_episode}")
     # print(f"Learning rate: {learning_rate}")
@@ -184,8 +169,9 @@ if __name__ == '__main__':
     time.sleep(time_for_reading_set_parameters)
 
     if args.env == "lake":
-        if mode == "dqn":
+        if args.mode == "dqn":
             import numpy as np
+
             class FrozenLakeDQNAgent(DQNAgent):
                 def __init__(self, *args, **kwargs):
                     super().__init__(*args, **kwargs)
@@ -194,16 +180,40 @@ if __name__ == '__main__':
                 def from_state_to_input_vector(self, state):
                     return self.eye[state]
 
+                def get_network(self):
+                    return DeepQNetwork(self.lr, n_actions=self.n_actions,
+                                        input_dims=self.input_dims, fc1_dims=10, fc2_dims=10)
+
             agent = FrozenLakeDQNAgent(16, 4)
-            save_path = 'dqn_agent'
-            num_episodes = 2000
-        else:
+            save_path = 'saved_models/dqn_agent'
+        elif args.mode == "manual":
+            agent = ManualPygameAgent()
+            save_path = None
+        elif args.mode.startswith("q-learn"):
             class FrozenLakeQAgent(QAgent):
                 def from_state_to_idx(self, state):
                     return state
-            agent = FrozenLakeQAgent(16, 4, manual_action= mode=="manual")
-            save_path = 'q_table'
-            num_episodes = 1000
+            manual = args.mode.endswith("m")
+            agent = FrozenLakeQAgent(16, 4, manual_action=manual)
+            save_path = 'saved_models/q_table'
+        else:
+            raise NotImplementedError
+
+        if state_path is not None:
+            agent.load(state_path)
+
+        main_pygame2(examined_env, agent, save_path=save_path, render=args.render,
+                     num_episodes=num_episodes)
+
+    elif args.env == "lv4":
+        if args.mode == "dqn":
+            agent = WumpusBasicDQN()
+            save_path = 'saved_models/dqn_agent_lv4'
+        elif args.mode == "manual":
+            agent = ManualPygameAgent()
+            save_path = None
+        else:
+            raise NotImplementedError
 
         if state_path is not None:
             agent.load(state_path)

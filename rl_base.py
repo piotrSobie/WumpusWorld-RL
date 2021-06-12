@@ -19,3 +19,14 @@ class Agent(ABC):
     @abstractmethod
     def save(self, save_path):
         pass
+
+    @abstractmethod
+    def get_instruction_string(self):
+        pass
+
+
+class Interpreter(ABC):
+
+    @abstractmethod
+    def observe(self, state):
+        pass

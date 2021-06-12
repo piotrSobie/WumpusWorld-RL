@@ -1,4 +1,4 @@
-from agent import Agent
+from rl_base import Agent
 from gui.manual_pygame_agent import QuitException
 from rl_alg.epsilon_greedy_strategy import EpsilonGreedyStrategy
 from time import sleep
@@ -30,7 +30,8 @@ def key_logic(auto_mode, done):
 
 
 def episode(screen, env, agent: Agent, max_ep_len, i_episode, auto=False, render=True):
-    observation = env.reset_env()
+    env.reset_env()
+    observation = env.get_state()
 
     if agent.manual_action:
         auto = False
@@ -39,10 +40,7 @@ def episode(screen, env, agent: Agent, max_ep_len, i_episode, auto=False, render
         screen.fill(WHITE)
         instruction_string = [f"Episode {i_episode}","Goal: step onto gold",
                               "Instruction:", "q | ESC - terminate program"]
-        if agent.manual_action:
-            instruction_string += ["w - move up", "a - move left", "d - move right", "s - move down"]
-        if not auto:
-            instruction_string += ["Press any key"]
+        instruction_string += agent.get_instruction_string()
         msg = instruction_string
         if hasattr(agent, 'q_table'):
             env.render(screen, msg, agent.q_table)
@@ -69,9 +67,10 @@ def episode(screen, env, agent: Agent, max_ep_len, i_episode, auto=False, render
                 total_reward += reward
                 n_steps += 1
                 if render:
-                    info = info.split(".")
-                    msg = instruction_string + [f"Agent state: {new_state}", f"Reward this step: {reward}",
-                                                f"Total reward: {total_reward}", f"Step: {n_steps}", f"Done: {done}"]
+                    msg = instruction_string + [f"Agent state:"]
+                    msg += ['    '+s for s in str(new_state).split(';')]
+                    msg += [f"Reward this step: {reward}", f"Total reward: {total_reward}",
+                            f"Step: {n_steps}", f"Done: {done}"]
                     if not agent.manual_action and isinstance(agent.action_selection_strategy, EpsilonGreedyStrategy):
                         msg += [f"Epsilon: {agent.action_selection_strategy.get_epsilon():.4f}"]
                     msg += ["Info:"]
@@ -105,7 +104,7 @@ def episode(screen, env, agent: Agent, max_ep_len, i_episode, auto=False, render
     return total_reward, n_steps, not last_episode, auto
 
 
-def main_pygame2(env, agent, max_ep_len=100, save_path=None, render=False,
+def main_pygame2(env, agent, max_ep_len=50, save_path=None, render=False,
                  num_episodes=1000, info_after_episodes=50):
 
     if not isinstance(agent, Agent):
@@ -126,21 +125,30 @@ def main_pygame2(env, agent, max_ep_len=100, save_path=None, render=False,
     total_rewards = []
     average_rewards = []
     best_average_rew = -np.inf
+    best_single = -np.inf
     n_steps = []
+    average_n_steps = []
     while running:
         tr, ns, running, auto_end = episode(screen, env, agent, max_ep_len, i_episode, auto_end, render)
+        if tr > best_single:
+            best_single = tr
+            print(f"In {i_episode} episode, new best total_reward: {tr:05f}, in {ns} steps!")
+
         total_rewards.append(tr)
         avr_rew = np.mean(total_rewards[-10:])
         average_rewards.append(avr_rew)
         n_steps.append(ns)
+        avr_steps = np.mean(n_steps[-10:])
+        average_n_steps.append(avr_steps)
         if avr_rew > best_average_rew:
             best_average_rew = avr_rew
             if save_path is not None:
                 agent.save(save_path + '_best')
-            print(f"After {i_episode} episodes, new best last 10 ep. avg: {avr_rew}")
+            print(f"After {i_episode} episodes, new best last 10 ep. avg rew: {avr_rew:05f}, avg steps/ep: {avr_steps:.2f}")
         i_episode += 1
         if i_episode % info_after_episodes == 0:
-            print(f"After {i_episode} episodes. Last 10 avg total_rewards: {avr_rew}")
+            print(f"After {i_episode} episodes. Last 10 avg total_rewards: {avr_rew:05f}, avg steps/ep: {avr_steps:.2f}, "
+                  f"Eps={agent.action_selection_strategy.get_epsilon()}")
         if i_episode == num_episodes:
             break
 

@@ -29,9 +29,9 @@ class FrozenLake:
         self.cave_entry_y = 0
         self.agentPosXY = [self.cave_entry_x, self.cave_entry_y]
 
-        self.intended_action_prob = 0.5
-        self.side_from_intended_prob = 0.25
-        self.opposite_from_intended_prob = 0.0
+        self.intended_action_prob = 0.750
+        self.side_from_intended_prob = 0.125
+        self.opposite_from_intended_prob = 0
         assert self.intended_action_prob + 2*self.side_from_intended_prob + self.opposite_from_intended_prob == 1.0, \
             "action probabilities must sum to 1.0"
 
@@ -71,10 +71,9 @@ class FrozenLake:
     def reset_env(self):
         self.grid_world = self.get_new_env()
         self.agentPosXY = [self.cave_entry_x, self.cave_entry_y]
-        return self.state_number[self.agentPosXY[0]][self.agentPosXY[1]]
 
-    def random_action(self):
-        return random.choice(self.action_space)
+    def get_state(self):
+        return self.state_number[self.agentPosXY[0]][self.agentPosXY[1]]
 
     def step(self, action):
         if action not in self.action_space:
@@ -134,7 +133,7 @@ class FrozenLake:
             else:
                 info += "Strange ending?"
 
-        return new_state, reward, done, info, game_won
+        return new_state, reward, done, [info], game_won
 
     def render(self, screen, text, q_values=None):
         if not self.assets:

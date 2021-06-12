@@ -1,4 +1,4 @@
-from agent import Agent
+from rl_base import Agent
 from gui.manual_pygame_agent import QuitException
 from time import sleep
 
@@ -35,23 +35,23 @@ def draw_game_window(env, screen, assets, text, visited, sensed):
     else:
         agent_img = assets['agent']
 
-    for i in range(len(env.grid_world)):
-        for j in range(len(env.grid_world[i])):
-            if env.grid_world[i][j] == env.regular_field:
+    for i in range(len(env.grids)):
+        for j in range(len(env.grids[i])):
+            if env.grids[i][j] == env.regular_field:
                 pygame.draw.rect(screen, brown, pygame.Rect(j * FIELD_SIZE_X, i * FIELD_SIZE_Y,
                                                             FIELD_SIZE_X, FIELD_SIZE_Y))
-            elif env.grid_world[i][j] == env.visited_field:
+            elif env.grids[i][j] == env.visited_field:
                 pygame.draw.rect(screen, green, pygame.Rect(j * FIELD_SIZE_X, i * FIELD_SIZE_Y,
                                                             FIELD_SIZE_X, FIELD_SIZE_Y))
-            elif env.grid_world[i][j] == env.gold_field:
+            elif env.grids[i][j] == env.gold_field:
                 screen.blit(assets['gold'], (j * FIELD_SIZE_X, i * FIELD_SIZE_Y,
                                              FIELD_SIZE_X, FIELD_SIZE_Y))
-            elif env.grid_world[i][j] == env.wumpus_field:
+            elif env.grids[i][j] == env.wumpus_field:
                 pygame.draw.rect(screen, red, pygame.Rect(j * FIELD_SIZE_X, i * FIELD_SIZE_Y,
                                                           FIELD_SIZE_X, FIELD_SIZE_Y))
                 screen.blit(assets['wumpus'], (j * FIELD_SIZE_X, i * FIELD_SIZE_Y,
                                                FIELD_SIZE_X, FIELD_SIZE_Y))
-            elif env.grid_world[i][j] == env.pit_field:
+            elif env.grids[i][j] == env.pit_field:
                 screen.blit(assets['pit'], (j * FIELD_SIZE_X, i * FIELD_SIZE_Y, FIELD_SIZE_X, FIELD_SIZE_Y))
 
             if (i == env.cave_entry_x) & (j == env.cave_entry_y):
@@ -73,7 +73,7 @@ def draw_game_window(env, screen, assets, text, visited, sensed):
 
     for t in range(len(text)):
         msg = assets['font'].render(text[t], False, black)
-        screen.blit(msg, (FIELD_SIZE_X * len(env.grid_world[0]) + 10, t * 25))
+        screen.blit(msg, (FIELD_SIZE_X * len(env.grids[0]) + 10, t * 25))
 
     pygame.display.flip()
 

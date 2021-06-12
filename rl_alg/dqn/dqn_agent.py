@@ -1,7 +1,7 @@
 import numpy as np
 import torch as T
 
-from agent import Agent
+from rl_base import Agent
 from rl_alg.dqn.dqn_network import DeepQNetwork
 from rl_alg.dqn.replay_memory import ReplayMemory
 from rl_alg.epsilon_greedy_strategy import EpsilonGreedyStrategy
@@ -14,6 +14,8 @@ class DQNAgent(Agent):
                  max_mem_size=500, eps_end=0.01, eps_dec=5e-4, replace_target=50,
                  replay_memory=None, net_state_dict=None, optimizer_state_dict=None):
         super().__init__()
+        self.input_dims = input_dims
+        self.n_actions = n_actions
         self.gamma = gamma
         self.lr = lr
         self.action_space = [i for i in range(n_actions)]
@@ -21,8 +23,8 @@ class DQNAgent(Agent):
         self.iter_cntr = 0
         self.replace_target = replace_target
 
-        self.Q_eval = DeepQNetwork(self.lr, n_actions=n_actions, input_dims=input_dims, fc1_dims=10, fc2_dims=10)
-        self.Q_next = DeepQNetwork(self.lr, n_actions=n_actions, input_dims=input_dims, fc1_dims=10, fc2_dims=10)
+        self.Q_eval = self.get_network()
+        self.Q_next = self.get_network()
 
         self.Q_next.load_state_dict(self.Q_eval.state_dict())
         self.Q_next.eval()
@@ -132,6 +134,13 @@ class DQNAgent(Agent):
         }
         T.save(state, save_path)
 
+    def get_instruction_string(self):
+        return ["Press p to on/off auto mode", "or any other key to one step"]
+
     @abstractmethod
     def from_state_to_input_vector(self, state):
+        pass
+
+    @abstractmethod
+    def get_network(self):
         pass

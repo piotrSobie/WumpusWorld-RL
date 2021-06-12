@@ -1,7 +1,7 @@
 import numpy as np
-from agent import Agent
+from rl_base import Agent
 from rl_alg.epsilon_greedy_strategy import EpsilonGreedyStrategy
-from gui.manual_pygame_agent import wsad_manual_simple_action
+from gui.manual_pygame_agent import wsad_manual_simple_action, wsad_info
 from abc import abstractmethod
 
 
@@ -52,3 +52,9 @@ class QAgent(Agent):
     @abstractmethod
     def from_state_to_idx(self, state):
         pass
+
+    def get_instruction_string(self):
+        if self.manual_action:
+            return wsad_info
+        else:
+            return ["Press p to on/off auto mode", "or any other key to one step"]

@@ -1,4 +1,4 @@
-from agent import Agent
+from rl_base import Agent
 import pygame
 
 from pygame.locals import (
@@ -21,6 +21,9 @@ class QuitException(Exception):
     pass
 
 
+wsad_info = ["w - move up", "a - move left", "d - move right", "s - move down"]
+
+
 def wsad_manual_simple_action():
     action = None
     for event in pygame.event.get():
@@ -41,16 +44,26 @@ def wsad_manual_simple_action():
 
 
 class Lv1ManualPygameAgent(Agent):
+
+    def __init__(self):
+        super().__init__()
+        self.manual_action = True
+
     def learn(self, observation, action, reward, new_observation, done):
         pass
 
     def choose_action(self, observation):
         return wsad_manual_simple_action()
 
+    def get_instruction_string(self):
+        return wsad_info
+
 
 class ManualPygameAgent(Agent):
-    def learn(self, observation, action, reward, new_observation, done):
-        pass
+
+    def __init__(self):
+        super().__init__()
+        self.manual_action = True
 
     def choose_action(self, observation):
         action = None
@@ -73,3 +86,12 @@ class ManualPygameAgent(Agent):
             elif event.type == QUIT:
                 raise QuitException()
         return action
+
+    def get_instruction_string(self):
+        return ["w - forward", "a - turn left", "d - turn right", "g - take gold", "z - shoot", "c - climb out"]
+
+    def save(self, save_path):
+        pass
+
+    def learn(self, observation, action, reward, new_observation, done):
+        pass
