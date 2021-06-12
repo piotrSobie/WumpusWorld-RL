@@ -35,12 +35,12 @@ class RewardDesc(NamedTuple):
 
 rewards = {
     Reward.LEFT_WITH_GOLD: RewardDesc("Left with gold!", 1000),
-    Reward.TOOK_GOLD: RewardDesc('Gold taken!', 500),
+    Reward.TOOK_GOLD: RewardDesc('Gold taken!', 1000),
     Reward.DEATH_BY_WUMPUS: RewardDesc('Killed by wumpus!', -1000),
     Reward.DEATH_BY_PIT: RewardDesc('Killed by pit!', -1000),
     Reward.WUMPUS_KILLED: RewardDesc('Wumpus killed!', 100),
     Reward.BUMP: RewardDesc('Bump!', -5),
-    Reward.NOT_VISITED_BEFORE: RewardDesc('New place', 5)}
+    Reward.NOT_VISITED_BEFORE: RewardDesc('New place', 50)}
 
 
 class FieldType(Enum):
@@ -320,9 +320,9 @@ class WumpusWorldLv4a:
 
         self.agent_state.update_senses(self.grids, bump, scream)
 
-        return self.agent_state, reward/1000, done, info, game_won
+        return self.agent_state, reward, done, info, game_won
 
-    def render(self, screen, text):
+    def render(self, screen, text, *args):
         if not self.assets:
             self.assets = load_assets()
 

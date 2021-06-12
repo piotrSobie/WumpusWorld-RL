@@ -1,4 +1,5 @@
-from gui.manual_pygame_agent import ManualPygameAgent, Lv1ManualPygameAgent
+from gui.manual_pygame_agent import ManualPygameAgent, Lv1ManualPygameAgent, TurningManualControl,\
+    SimpleManualControl
 from rl_alg.dqn.dqn_agent import DQNAgent
 from wumpus_envs.wumpus_env_lv1 import WumpusWorldLv1
 from wumpus_envs.wumpus_env_lv2 import WumpusWorldLv2
@@ -19,7 +20,7 @@ from rl_alg.dqn.dqn_default_params import DqnDefaultParams
 from rl_alg.q_agent import QAgent
 from rl_alg.dqn.dqn_agent import DQNAgent
 from rl_alg.dqn.dqn_network import DeepQNetwork
-from experiments.wumpuslv4_dqn_agent import WumpusBasicDQN
+from experiments.wumpuslv4_dqn_agent import WumpusBasicDQN, BasicWumpusQAgent
 
 import argparse
 import time
@@ -89,9 +90,11 @@ if __name__ == '__main__':
     parser.add_argument("--save_every", help=f"Saving checkpoint at specified frequency, default={save_every}", default=save_every)
     parser.add_argument("--no_render", help=f"Whether to display pygame", dest='render', action='store_false')
     parser.add_argument("--no_random_grid", help=f"Whether grid is random or not", dest='random_grid', action='store_false')
+    parser.add_argument("--test", help=f"Whether this is test mode", dest='test_mode', action='store_true')
 
     parser.set_defaults(render=True)
     parser.set_defaults(random_grid=True)
+    parser.set_defaults(test_mode=False)
 
     args = parser.parse_args()
     exception_msg = "Invalid environment, try python main.py --help"
@@ -191,6 +194,10 @@ if __name__ == '__main__':
             save_path = None
         elif args.mode.startswith("q-learn"):
             class FrozenLakeQAgent(QAgent):
+                def __init__(self, *args, **kwargs):
+                    super().__init__(*args, **kwargs)
+                    self.manual_control = SimpleManualControl()
+
                 def from_state_to_idx(self, state):
                     return state
             manual = args.mode.endswith("m")
@@ -199,11 +206,17 @@ if __name__ == '__main__':
         else:
             raise NotImplementedError
 
+        if args.test_mode:
+            state_path = save_path
+            if args.mode.startswith("q-learn"):
+                state_path += '.npy'
+
         if state_path is not None:
+            print(f"Loading agent state from {state_path}")
             agent.load(state_path)
 
         main_pygame2(examined_env, agent, save_path=save_path, render=args.render,
-                     num_episodes=num_episodes)
+                     num_episodes=num_episodes, test_mode=args.test_mode)
 
     elif args.env == "lv4":
         if args.mode == "dqn":
@@ -212,14 +225,24 @@ if __name__ == '__main__':
         elif args.mode == "manual":
             agent = ManualPygameAgent()
             save_path = None
+        elif args.mode.startswith("q-learn"):
+            manual = args.mode.endswith("m")
+            save_path = 'saved_models/q_table_lv4'
+            agent = BasicWumpusQAgent(manual_action=manual)
         else:
             raise NotImplementedError
 
+        if args.test_mode:
+            state_path = save_path
+            if args.mode.startswith("q-learn"):
+                state_path += '.npy'
+
         if state_path is not None:
+            print(f"Loading agent state from {state_path}")
             agent.load(state_path)
 
         main_pygame2(examined_env, agent, save_path=save_path, render=args.render,
-                     num_episodes=num_episodes)
+                     num_episodes=num_episodes, test_mode=args.test_mode)
 
     elif mode == "manual":
         if args.env == "lv1" or args.env == "lake":

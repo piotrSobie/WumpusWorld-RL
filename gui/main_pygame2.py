@@ -29,7 +29,7 @@ def key_logic(auto_mode, done):
     return key_pressed, running_episode, last_episode, auto_mode
 
 
-def episode(screen, env, agent: Agent, max_ep_len, i_episode, auto=False, render=True):
+def episode(screen, env, agent: Agent, max_ep_len, i_episode, auto=False, render=True, test_mode=False):
     env.reset_env()
     observation = env.get_state()
 
@@ -62,7 +62,8 @@ def episode(screen, env, agent: Agent, max_ep_len, i_episode, auto=False, render
 
             if action is not None:
                 new_state, reward, done, info, _ = env.step(action)
-                agent.learn(observation, action, reward, new_state, done)
+                if not test_mode:
+                    agent.learn(observation, action, reward, new_state, done)
                 observation = new_state
                 total_reward += reward
                 n_steps += 1
@@ -105,10 +106,16 @@ def episode(screen, env, agent: Agent, max_ep_len, i_episode, auto=False, render
 
 
 def main_pygame2(env, agent, max_ep_len=50, save_path=None, render=False,
-                 num_episodes=1000, info_after_episodes=50):
+                 num_episodes=1000, info_after_episodes=50, test_mode=False):
 
     if not isinstance(agent, Agent):
         raise ValueError('Unsupported agent type.')
+
+    if test_mode:
+        agent.action_selection_strategy.epsilon = 0
+        agent.action_selection_strategy.eps_min = 0
+        agent.action_selection_strategy.eps_dec = 0
+        print(f"TEST MODE, greedy action selection, eps={agent.action_selection_strategy.get_epsilon()}")
 
     if render:
         # Initialize pygame
@@ -129,11 +136,10 @@ def main_pygame2(env, agent, max_ep_len=50, save_path=None, render=False,
     n_steps = []
     average_n_steps = []
     while running:
-        tr, ns, running, auto_end = episode(screen, env, agent, max_ep_len, i_episode, auto_end, render)
+        tr, ns, running, auto_end = episode(screen, env, agent, max_ep_len, i_episode, auto_end, render, test_mode)
         if tr > best_single:
             best_single = tr
             print(f"In {i_episode} episode, new best total_reward: {tr:05f}, in {ns} steps!")
-
         total_rewards.append(tr)
         avr_rew = np.mean(total_rewards[-10:])
         average_rewards.append(avr_rew)
@@ -142,7 +148,7 @@ def main_pygame2(env, agent, max_ep_len=50, save_path=None, render=False,
         average_n_steps.append(avr_steps)
         if avr_rew > best_average_rew:
             best_average_rew = avr_rew
-            if save_path is not None:
+            if save_path is not None and not test_mode:
                 agent.save(save_path + '_best')
             print(f"After {i_episode} episodes, new best last 10 ep. avg rew: {avr_rew:05f}, avg steps/ep: {avr_steps:.2f}")
         i_episode += 1
@@ -158,6 +164,6 @@ def main_pygame2(env, agent, max_ep_len=50, save_path=None, render=False,
         plt.ylabel('Total reward')
         plt.show()
 
-    if save_path is not None:
+    if save_path is not None and not test_mode:
         agent.save(save_path)
 

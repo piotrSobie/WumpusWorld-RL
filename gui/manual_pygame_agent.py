@@ -15,57 +15,56 @@ from pygame.locals import (
     KEYDOWN,
     QUIT,
 )
+from abc import ABC, abstractmethod
 
 
 class QuitException(Exception):
     pass
 
 
-wsad_info = ["w - move up", "a - move left", "d - move right", "s - move down"]
+class ManualActionControl(ABC):
 
-
-def wsad_manual_simple_action():
-    action = None
-    for event in pygame.event.get():
-        if event.type == KEYDOWN:
-            if (event.key == K_ESCAPE) | (event.key == K_q):
-                raise QuitException()
-            elif event.key == K_w:
-                action = 0
-            elif event.key == K_s:
-                action = 1
-            elif event.key == K_a:
-                action = 3
-            elif event.key == K_d:
-                action = 2
-        elif event.type == QUIT:
-            raise QuitException()
-    return action
-
-
-class Lv1ManualPygameAgent(Agent):
-
-    def __init__(self):
-        super().__init__()
-        self.manual_action = True
-
-    def learn(self, observation, action, reward, new_observation, done):
+    @staticmethod
+    @abstractmethod
+    def get_action():
         pass
 
-    def choose_action(self, observation):
-        return wsad_manual_simple_action()
+    @staticmethod
+    @abstractmethod
+    def get_instruction_string():
+        pass
 
-    def get_instruction_string(self):
-        return wsad_info
+
+class SimpleManualControl(ManualActionControl):
+
+    @staticmethod
+    def get_action():
+        action = None
+        for event in pygame.event.get():
+            if event.type == KEYDOWN:
+                if (event.key == K_ESCAPE) | (event.key == K_q):
+                    raise QuitException()
+                elif event.key == K_w:
+                    action = 0
+                elif event.key == K_s:
+                    action = 1
+                elif event.key == K_a:
+                    action = 3
+                elif event.key == K_d:
+                    action = 2
+            elif event.type == QUIT:
+                raise QuitException()
+        return action
+
+    @staticmethod
+    def get_instruction_string():
+        return ["w - move up", "a - move left", "d - move right", "s - move down"]
 
 
-class ManualPygameAgent(Agent):
+class TurningManualControl(ManualActionControl):
 
-    def __init__(self):
-        super().__init__()
-        self.manual_action = True
-
-    def choose_action(self, observation):
+    @staticmethod
+    def get_action():
         action = None
         for event in pygame.event.get():
             if event.type == KEYDOWN:
@@ -87,8 +86,43 @@ class ManualPygameAgent(Agent):
                 raise QuitException()
         return action
 
-    def get_instruction_string(self):
+    @staticmethod
+    def get_instruction_string():
         return ["w - forward", "a - turn left", "d - turn right", "g - take gold", "z - shoot", "c - climb out"]
+
+
+class Lv1ManualPygameAgent(Agent):
+    def __init__(self):
+        super().__init__()
+        self.manual_action = True
+        self.control = SimpleManualControl()
+
+    def learn(self, observation, action, reward, new_observation, done):
+        pass
+
+    def choose_action(self, observation):
+        return self.control.get_action()
+
+    def get_instruction_string(self):
+        return self.control.get_instruction_string()
+
+    def save(self, save_path):
+        pass
+
+
+
+class ManualPygameAgent(Agent):
+
+    def __init__(self):
+        super().__init__()
+        self.manual_action = True
+        self.control = TurningManualControl()
+
+    def choose_action(self, observation):
+        return self.control.get_action()
+
+    def get_instruction_string(self):
+        return self.control.get_instruction_string()
 
     def save(self, save_path):
         pass
