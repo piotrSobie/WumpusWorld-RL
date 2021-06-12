@@ -26,16 +26,13 @@ class QAgent(Agent):
         state_idx = self.from_state_to_idx(observation)
         assert 0 <= state_idx < self.n_states, \
             f"Bad state_idx. Has to be int between 0 and {self.n_states}"
-
-        print(f"Idx={state_idx}: {self.q_table[state_idx, :]}")
-
+        
         if self.manual_action:
             action = self.manual_control.get_action()
         else:
             if np.random.random() >= self.action_selection_strategy.get_epsilon():
                 action = np.argmax(self.q_table[state_idx, :])
             else:
-                print('Exploration!')
                 action = np.random.choice(self.action_space)
             self.action_selection_strategy.update_epsilon()
 

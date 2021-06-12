@@ -1,3 +1,5 @@
+from time import sleep
+
 from rl_base import Agent
 import pygame
 
@@ -40,20 +42,22 @@ class SimpleManualControl(ManualActionControl):
     @staticmethod
     def get_action():
         action = None
-        for event in pygame.event.get():
-            if event.type == KEYDOWN:
-                if (event.key == K_ESCAPE) | (event.key == K_q):
+        while action is None:
+            for event in pygame.event.get():
+                if event.type == KEYDOWN:
+                    if (event.key == K_ESCAPE) | (event.key == K_q):
+                        raise QuitException()
+                    elif event.key == K_w:
+                        action = 0
+                    elif event.key == K_s:
+                        action = 1
+                    elif event.key == K_a:
+                        action = 3
+                    elif event.key == K_d:
+                        action = 2
+                elif event.type == QUIT:
                     raise QuitException()
-                elif event.key == K_w:
-                    action = 0
-                elif event.key == K_s:
-                    action = 1
-                elif event.key == K_a:
-                    action = 3
-                elif event.key == K_d:
-                    action = 2
-            elif event.type == QUIT:
-                raise QuitException()
+            sleep(0.05)
         return action
 
     @staticmethod
@@ -66,24 +70,26 @@ class TurningManualControl(ManualActionControl):
     @staticmethod
     def get_action():
         action = None
-        for event in pygame.event.get():
-            if event.type == KEYDOWN:
-                if (event.key == K_ESCAPE) | (event.key == K_q):
+        while action is None:
+            for event in pygame.event.get():
+                if event.type == KEYDOWN:
+                    if (event.key == K_ESCAPE) | (event.key == K_q):
+                        raise QuitException()
+                    elif event.key == K_w:
+                        action = 0
+                    elif event.key == K_a:
+                        action = 1
+                    elif event.key == K_d:
+                        action = 2
+                    elif event.key == K_g:
+                        action = 3
+                    elif event.key == K_z:
+                        action = 4
+                    elif event.key == K_c:
+                        action = 5
+                elif event.type == QUIT:
                     raise QuitException()
-                elif event.key == K_w:
-                    action = 0
-                elif event.key == K_a:
-                    action = 1
-                elif event.key == K_d:
-                    action = 2
-                elif event.key == K_g:
-                    action = 3
-                elif event.key == K_z:
-                    action = 4
-                elif event.key == K_c:
-                    action = 5
-            elif event.type == QUIT:
-                raise QuitException()
+            sleep(0.05)
         return action
 
     @staticmethod

@@ -3,6 +3,7 @@ import numpy as np
 from typing import NamedTuple, List
 from enum import Enum
 from pygame_config import *
+from copy import deepcopy
 
 
 class Action(Enum):
@@ -195,7 +196,7 @@ class WumpusWorldLv4a:
         self.agent_state = AgentState(CAVE_ENTRY_X, CAVE_ENTRY_Y, self.number_of_wumpuses, self.grids)
 
     def get_state(self):
-        return self.agent_state
+        return deepcopy(self.agent_state)
 
     def try_to_kill_wumpus_at_xy(self, x, y):
         if self.grids.objects[x][y] == FieldType.WUMPUS:
@@ -320,7 +321,7 @@ class WumpusWorldLv4a:
 
         self.agent_state.update_senses(self.grids, bump, scream)
 
-        return self.agent_state, reward, done, info, game_won
+        return self.get_state(), reward, done, info, game_won
 
     def render(self, screen, text, *args):
         if not self.assets:
