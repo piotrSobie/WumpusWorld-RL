@@ -11,7 +11,7 @@ from abc import abstractmethod
 
 class DQNAgent(Agent):
     def __init__(self, input_dims, n_actions, gamma=0.99, epsilon=0.5, lr=0.01, batch_size=64,
-                 max_mem_size=500, eps_end=0.01, eps_dec=5e-4, replace_target=50,
+                 max_mem_size=500, eps_end=0.01, eps_dec=5e-4, replace_target=50, polyak=True, soft_tau=1e-2,
                  replay_memory=None, net_state_dict=None, optimizer_state_dict=None):
         super().__init__()
         self.input_dims = input_dims
@@ -22,6 +22,8 @@ class DQNAgent(Agent):
         self.batch_size = batch_size
         self.iter_cntr = 0
         self.replace_target = replace_target
+        self.soft_tau = soft_tau
+        self.polyak = polyak
 
         self.Q_eval = self.get_network()
         self.Q_next = self.get_network()
@@ -55,7 +57,7 @@ class DQNAgent(Agent):
 
         return action
 
-    def learn(self, observation, action, reward, new_observation, done):
+    def learn(self, observation, action, reward, new_observation, done, combined_replay=True):
 
         obs_vector = self.from_state_to_input_vector(observation)
         new_obs_vector = self.from_state_to_input_vector(new_observation)
@@ -68,6 +70,13 @@ class DQNAgent(Agent):
 
         state_batch, new_state_batch, action_batch, reward_batch, terminal_batch =\
             self.memory.get_sample(self.batch_size, self.Q_eval)
+
+        if combined_replay:
+            state_batch[0, :] = T.tensor(obs_vector)
+            new_state_batch[0, :] = T.tensor(new_obs_vector)
+            action_batch[0] = T.tensor(action)
+            reward_batch[0] = T.tensor(reward)
+            terminal_batch[0] = T.tensor(done)
 
         batch_index = np.arange(self.batch_size, dtype=np.int32)
 
@@ -83,8 +92,14 @@ class DQNAgent(Agent):
 
         self.iter_cntr += 1
 
-        if self.iter_cntr % self.replace_target == 0:
-            self.Q_next.load_state_dict(self.Q_eval.state_dict())
+        if self.polyak:
+            for target_param, param in zip(self.Q_next.parameters(), self.Q_eval.parameters()):
+                target_param.data.copy_(
+                    target_param.data * (1.0 - self.soft_tau) + param.data * self.soft_tau
+                )
+        else:
+            if self.iter_cntr % self.replace_target == 0:
+                self.Q_next.load_state_dict(self.Q_eval.state_dict())
 
     @staticmethod
     def load_static(load_state_path, n_actions, n_observations):
@@ -116,9 +131,12 @@ class DQNAgent(Agent):
         self.lr = loaded_state['lr']
         self.gamma = loaded_state['gamma']
         self.replace_target = loaded_state['replace_target']
+        self.soft_tau = loaded_state['soft_tau']
+        self.polyak = loaded_state['polyak']
+        return loaded_state
 
-    def save(self, save_path):
-        state = {
+    def get_state_dict(self):
+        state_dict = {
             'state_dict': self.Q_eval.state_dict(),
             'optimizer': self.Q_eval.optimizer.state_dict(),
             'gamma': self.gamma,
@@ -129,10 +147,15 @@ class DQNAgent(Agent):
             'lr': self.lr,
             'max_mem_size': self.memory.mem_size,
             'replace_target': self.replace_target,
+            'soft_tau': self.soft_tau,
             'replay_memory': self.memory,
-
+            'polyak': self.polyak
         }
-        T.save(state, save_path)
+        return state_dict
+
+    def save(self, save_path):
+        state_dict = self.get_state_dict()
+        T.save(state_dict, save_path)
 
     def get_instruction_string(self):
         return ["Press p to on/off auto mode", "or any other key to one step"]

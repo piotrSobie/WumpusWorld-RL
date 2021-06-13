@@ -74,9 +74,9 @@ if __name__ == '__main__':
                                                         f"default={max_steps_per_episode}", default=max_steps_per_episode)
     parser.add_argument("--lr", help=f"Learning rate, should be in <0, 1>, default={learning_rate}", default=learning_rate)
     parser.add_argument("--discount", help=f"Discount rate (gamma), should be in <0, 1>, default={discount_rate}", default=discount_rate)
-    parser.add_argument("--eps_start", help=f"Epsilon starting value, should be in <0, 1>, default={epsilon_start}", default=epsilon_start)
-    parser.add_argument("--eps_decay", help=f"Epsilon decay rate, default={epsilon_decay}", default=epsilon_decay)
-    parser.add_argument("--eps_min", help=f"Epsilon min, should be in <0, 1>, default={epsilon_min}", default=epsilon_min)
+    parser.add_argument("--eps_start", help=f"Epsilon starting value, should be in <0, 1>, default={epsilon_start}", default=epsilon_start, type=float)
+    parser.add_argument("--eps_decay", help=f"Epsilon decay rate, default={epsilon_decay}", default=epsilon_decay, type=float)
+    parser.add_argument("--eps_min", help=f"Epsilon min, should be in <0, 1>, default={epsilon_min}", default=epsilon_min, type=float)
     parser.add_argument("--show_whole_map", help=f"Show whole map in manual play, default={show_whole_map}", default=show_whole_map, type=bool)
     parser.add_argument("--show_actions_plot", help=f"Show plot with number of actions, default={show_actions_plot}", default=show_actions_plot, type=bool)
     parser.add_argument("--show_reward_plot", help=f"Show plot with rewards, default={show_reward_plot}", default=show_reward_plot, type=bool)
@@ -240,6 +240,10 @@ if __name__ == '__main__':
         if state_path is not None:
             print(f"Loading agent state from {state_path}")
             agent.load(state_path)
+            # print(f"WARINING: reseting eps-greedy params to: eps_start={epsilon_start}, eps_decay={epsilon_decay}")
+            # agent.action_selection_strategy.epsilon = epsilon_start
+            # agent.action_selection_strategy.eps_dec = epsilon_decay
+            # agent.action_selection_strategy.eps_min = epsilon_min
 
         main_pygame2(examined_env, agent, save_path=save_path, render=args.render,
                      num_episodes=num_episodes, test_mode=args.test_mode)

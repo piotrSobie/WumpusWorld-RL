@@ -31,7 +31,7 @@ def key_logic(auto_mode, done):
 
 def episode(screen, env, agent: Agent, max_ep_len, i_episode, auto=False, render=True, test_mode=False):
     env.reset_env()
-    observation = env.get_state()
+    state = env.get_state()
 
     if agent.manual_action:
         auto = False
@@ -54,17 +54,28 @@ def episode(screen, env, agent: Agent, max_ep_len, i_episode, auto=False, render
     last_episode = False
     # Main loop
     while running_episode:
+
+        if render:
+            key_pressed = False
+            key_pressed, running_episode, last_episode, auto = key_logic(auto, done)
+            if auto or agent.manual_action:
+                sleep(0.05)
+            else:
+                while not key_pressed:
+                    key_pressed, running_episode, last_episode, auto = key_logic(auto, done)
+                    sleep(0.05)
+
         if not done:
             try:
-                action = agent.choose_action(observation)
+                action = agent.choose_action(state)
             except QuitException:
                 return total_reward, n_steps, False, auto
 
             if action is not None:
                 new_state, reward, done, info, _ = env.step(action)
                 if not test_mode:
-                    agent.learn(observation, action, reward, new_state, done)
-                observation = new_state
+                    agent.learn(state, action, reward, new_state, done)
+                state = new_state
                 total_reward += reward
                 n_steps += 1
                 if render:
@@ -86,15 +97,6 @@ def episode(screen, env, agent: Agent, max_ep_len, i_episode, auto=False, render
                 msg = end_msg
 
         if render:
-            key_pressed = False
-            key_pressed, running_episode, last_episode, auto = key_logic(auto, done)
-            if auto or agent.manual_action:
-                sleep(0.05)
-            else:
-                while not key_pressed:
-                    key_pressed, running_episode, last_episode, auto = key_logic(auto, done)
-                    sleep(0.05)
-
             if hasattr(agent, 'q_table'):
                 env.render(screen, msg, agent.q_table)
             else:
@@ -115,6 +117,10 @@ def main_pygame2(env, agent, max_ep_len=50, save_path=None, render=False,
         agent.action_selection_strategy.epsilon = 0
         agent.action_selection_strategy.eps_min = 0
         agent.action_selection_strategy.eps_dec = 0
+        if hasattr(agent, "second_eps_strategy"):
+            agent.second_eps_strategy.epsilon = 0
+            agent.second_eps_strategy.eps_min = 0
+            agent.second_eps_strategy.eps_dec = 0
         print(f"TEST MODE, greedy action selection, eps={agent.action_selection_strategy.get_epsilon()}")
 
     if render:
@@ -153,8 +159,12 @@ def main_pygame2(env, agent, max_ep_len=50, save_path=None, render=False,
             print(f"After {i_episode} episodes, new best last 10 ep. avg rew: {avr_rew:05f}, avg steps/ep: {avr_steps:.2f}")
         i_episode += 1
         if i_episode % info_after_episodes == 0:
-            print(f"After {i_episode} episodes. Last 10 avg total_rewards: {avr_rew:05f}, avg steps/ep: {avr_steps:.2f}, "
-                  f"Eps={agent.action_selection_strategy.get_epsilon()}")
+            if hasattr(agent, "second_eps_strategy"):
+                print(f"After {i_episode} episodes. Last 10 avg total_rewards: {avr_rew:05f}, avg steps/ep: {avr_steps:.2f}, "
+                      f"Eps={agent.first_eps_strategy.get_epsilon()}, Eps2={agent.second_eps_strategy.get_epsilon()}")
+            else:
+                print(f"After {i_episode} episodes. Last 10 avg total_rewards: {avr_rew:05f}, avg steps/ep: {avr_steps:.2f}, "
+                      f"Eps={agent.action_selection_strategy.get_epsilon()}")
         if i_episode == num_episodes:
             break
 

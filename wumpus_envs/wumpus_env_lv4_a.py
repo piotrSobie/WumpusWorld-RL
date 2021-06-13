@@ -36,12 +36,12 @@ class RewardDesc(NamedTuple):
 
 rewards = {
     Reward.LEFT_WITH_GOLD: RewardDesc("Left with gold!", 1000),
-    Reward.TOOK_GOLD: RewardDesc('Gold taken!', 1000),
+    Reward.TOOK_GOLD: RewardDesc('Gold taken!', 500),
     Reward.DEATH_BY_WUMPUS: RewardDesc('Killed by wumpus!', -1000),
     Reward.DEATH_BY_PIT: RewardDesc('Killed by pit!', -1000),
-    Reward.WUMPUS_KILLED: RewardDesc('Wumpus killed!', 100),
+    Reward.WUMPUS_KILLED: RewardDesc('Wumpus killed!', 0),
     Reward.BUMP: RewardDesc('Bump!', -5),
-    Reward.NOT_VISITED_BEFORE: RewardDesc('New place', 50)}
+    Reward.NOT_VISITED_BEFORE: RewardDesc('New place', 5)}
 
 
 class FieldType(Enum):
@@ -258,8 +258,8 @@ class WumpusWorldLv4a:
                 if self.grids.visited[self.agent_state.pos_x][self.agent_state.pos_y] == 0:
                     reward += rewards[Reward.NOT_VISITED_BEFORE].reward
                     info += [rewards[Reward.NOT_VISITED_BEFORE].info]
-                if self.grids.objects[self.agent_state.pos_x][self.agent_state.pos_y] == FieldType.GOLD:
-                    print('Stepped into GOLD!')
+                # if self.grids.objects[self.agent_state.pos_x][self.agent_state.pos_y] == FieldType.GOLD:
+                #     print('Stepped into GOLD!')
 
         elif action == Action.TURN_LEFT:
             self.agent_state.agent_direction = Direction((self.agent_state.agent_direction.value + 1) % 4)
@@ -269,12 +269,12 @@ class WumpusWorldLv4a:
             if self.grids.objects[self.agent_state.pos_x][self.agent_state.pos_y] == FieldType.GOLD:
                 self.grids.objects[self.agent_state.pos_x][self.agent_state.pos_y] = FieldType.REGULAR
                 self.agent_state.gold_taken = True
-                print('TOOK GOLD!')
+                # print('TOOK GOLD!')
                 reward += rewards[Reward.TOOK_GOLD].reward
                 info += [rewards[Reward.TOOK_GOLD].info]
                 # uncomment 2 lines below to finish game after taking gold
-                done = True
-                game_won = True
+                # done = True
+                # game_won = True
             else:
                 info += ["No gold here."]
         elif action == Action.SHOOT:
