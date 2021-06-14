@@ -31,14 +31,17 @@ def key_logic(auto_mode, done):
 
 def episode(screen, env, agent: Agent, max_ep_len, i_episode, auto=False, render=True, test_mode=False):
     env.reset_env()
+    agent.reset_for_new_episode()
+
     state = env.get_state()
+    observation = agent.observe(state)
 
     if agent.manual_action:
         auto = False
 
     if render:
         screen.fill(WHITE)
-        instruction_string = [f"Episode {i_episode}","Goal: step onto gold",
+        instruction_string = [f"Episode {i_episode}", "Goal: step onto gold",
                               "Instruction:", "q | ESC - terminate program"]
         instruction_string += agent.get_instruction_string()
         msg = instruction_string
@@ -67,15 +70,16 @@ def episode(screen, env, agent: Agent, max_ep_len, i_episode, auto=False, render
 
         if not done:
             try:
-                action = agent.choose_action(state)
+                action = agent.choose_action(observation)
             except QuitException:
                 return total_reward, n_steps, False, auto
 
             if action is not None:
                 new_state, reward, done, info, _ = env.step(action)
+                new_observation = agent.observe(new_state)
                 if not test_mode:
-                    agent.learn(state, action, reward, new_state, done)
-                state = new_state
+                    agent.learn(observation, action, reward, new_observation, done)
+                observation = new_observation
                 total_reward += reward
                 n_steps += 1
                 if render:

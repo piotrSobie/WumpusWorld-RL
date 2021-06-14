@@ -113,6 +113,7 @@ class WumpusBasicDQN(WumpusBasicStaticWorldDQN):
         self.map = self.get_empty_map()
 
     def update_maps(self, state: AgentState) -> None:
+        pass
 
 
     def from_state_to_input_vector(self, state: AgentState):

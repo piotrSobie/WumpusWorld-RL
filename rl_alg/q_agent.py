@@ -23,15 +23,14 @@ class QAgent(Agent):
         return q_table
 
     def choose_action(self, observation):
-        state_idx = self.from_state_to_idx(observation)
-        assert 0 <= state_idx < self.n_states, \
+        assert 0 <= observation < self.n_states, \
             f"Bad state_idx. Has to be int between 0 and {self.n_states}"
 
         if self.manual_action:
             action = self.manual_control.get_action()
         else:
             if np.random.random() >= self.action_selection_strategy.get_epsilon():
-                action = np.argmax(self.q_table[state_idx, :])
+                action = np.argmax(self.q_table[observation, :])
             else:
                 action = np.random.choice(self.action_space)
             self.action_selection_strategy.update_epsilon()
@@ -39,10 +38,8 @@ class QAgent(Agent):
         return action
 
     def learn(self, observation, action, reward, new_observation, done):
-        idx = self.from_state_to_idx(observation)
-        new_idx = self.from_state_to_idx(new_observation)
-        self.q_table[idx, action] = (1 - self.lr) * self.q_table[idx, action] + \
-            self.lr * (reward + self.gamma * np.max(self.q_table[new_idx, :]))
+        self.q_table[observation, action] = (1 - self.lr) * self.q_table[observation, action] + \
+            self.lr * (reward + self.gamma * np.max(self.q_table[new_observation, :]))
 
     def save(self, path):
         np.save(path, self.q_table)
@@ -56,6 +53,9 @@ class QAgent(Agent):
     @abstractmethod
     def from_state_to_idx(self, state):
         pass
+
+    def observe(self, state):
+        return self.from_state_to_idx(state)
 
     def get_instruction_string(self):
         if self.manual_action:
