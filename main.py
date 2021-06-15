@@ -20,7 +20,7 @@ from rl_alg.dqn.dqn_default_params import DqnDefaultParams
 from rl_alg.q_agent import QAgent
 from rl_alg.dqn.dqn_agent import DQNAgent
 from rl_alg.dqn.dqn_network import DeepQNetwork
-from experiments.wumpuslv4_dqn_agent import WumpusBasicDQN, BasicWumpusQAgent
+from experiments.wumpuslv4_dqn_agent import WumpusSenseMapStaticDQN, BasicWumpusQAgent, WumpusBasicStaticWorldDQN
 
 import argparse
 import time
@@ -91,10 +91,13 @@ if __name__ == '__main__':
     parser.add_argument("--no_render", help=f"Whether to display pygame", dest='render', action='store_false')
     parser.add_argument("--no_random_grid", help=f"Whether grid is random or not", dest='random_grid', action='store_false')
     parser.add_argument("--test", help=f"Whether this is test mode", dest='test_mode', action='store_true')
+    parser.add_argument("--reset_eps", help=f"Whether this eps-greedy strategy should start from {epsilon_start} again.",
+                        dest='reset_eps', action='store_true')
 
     parser.set_defaults(render=True)
     parser.set_defaults(random_grid=True)
     parser.set_defaults(test_mode=False)
+    parser.set_defaults(reset_eps=False)
 
     args = parser.parse_args()
     exception_msg = "Invalid environment, try python main.py --help"
@@ -219,9 +222,11 @@ if __name__ == '__main__':
                      num_episodes=num_episodes, test_mode=args.test_mode)
 
     elif args.env == "lv4":
-        if args.mode == "dqn":
-            agent = WumpusBasicDQN()
-            save_path = 'saved_models/dqn_agent_lv4'
+        if args.mode.startswith("dqn"):
+            manual = args.mode.endswith("m")
+            # agent = WumpusBasicStaticWorldDQN()
+            agent = WumpusSenseMapStaticDQN(manual_action=manual)
+            save_path = 'saved_models/dqn_agent_lv5'
         elif args.mode == "manual":
             agent = ManualPygameAgent()
             save_path = None
@@ -240,10 +245,12 @@ if __name__ == '__main__':
         if state_path is not None:
             print(f"Loading agent state from {state_path}")
             agent.load(state_path)
-            # print(f"WARINING: reseting eps-greedy params to: eps_start={epsilon_start}, eps_decay={epsilon_decay}")
-            # agent.action_selection_strategy.epsilon = epsilon_start
-            # agent.action_selection_strategy.eps_dec = epsilon_decay
-            # agent.action_selection_strategy.eps_min = epsilon_min
+
+        if args.reset_eps:
+            print(f"WARINING: reseting eps-greedy params to: eps_start={epsilon_start}, eps_decay={epsilon_decay}")
+            agent.action_selection_strategy.epsilon = epsilon_start
+            agent.action_selection_strategy.eps_dec = epsilon_decay
+            agent.action_selection_strategy.eps_min = epsilon_min
 
         main_pygame2(examined_env, agent, save_path=save_path, render=args.render,
                      num_episodes=num_episodes, test_mode=args.test_mode)

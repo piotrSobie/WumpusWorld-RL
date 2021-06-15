@@ -27,3 +27,29 @@ class DeepQNetwork(nn.Module):
         actions = self.fc3(x)
 
         return actions
+
+
+class SimpleCNNQNetwork(nn.Module):
+    def __init__(self, input_dims, n_actions, lr):
+        super().__init__()
+        in_channels = input_dims[0]
+        self.conv1 = nn.Conv2d(in_channels, 32, kernel_size=3)
+        # self.pool = nn.MaxPool2d(2, 2)
+        self.conv2 = nn.Conv2d(32, 32, kernel_size=3)
+        self.conv3 = nn.Conv2d(32, 64, kernel_size=3)
+        self.fc1 = nn.Linear(64, 32)
+        self.fc2 = nn.Linear(32, n_actions)
+
+        self.optimizer = optim.Adam(self.parameters(), lr=lr)
+        self.loss = nn.MSELoss()
+        self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')
+        self.to(self.device)
+
+    def forward(self, x):
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
+        x = T.flatten(x, 1)         # flatten all dimensions except batch
+        x = F.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x

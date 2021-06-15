@@ -1,9 +1,10 @@
-import torch as T
+from enum import Enum
+
 from rl_alg.dqn.dqn_agent import DQNAgent
 from rl_alg.epsilon_greedy_strategy import EpsilonGreedyStrategy
 from rl_alg.q_agent import QAgent
-from rl_alg.dqn.dqn_network import DeepQNetwork
-from wumpus_envs.wumpus_env_lv4_a import AgentState, Action, CAVE_ENTRY_X, CAVE_ENTRY_Y, Sense
+from rl_alg.dqn.dqn_network import DeepQNetwork, SimpleCNNQNetwork
+from wumpus_envs.wumpus_env_lv4_a import AgentState, Action, CAVE_ENTRY_X, CAVE_ENTRY_Y, Sense, Direction
 from gui.manual_pygame_agent import TurningManualControl
 import numpy as np
 
@@ -17,7 +18,7 @@ class TakeGoldWumpusBasicDQN(DQNAgent):
 
         self.eye = np.eye(4, dtype=np.float32)
 
-    def from_state_to_input_vector(self, state: AgentState):
+    def from_state_to_net_input(self, state: AgentState):
         pos_x_v = self.eye[state.pos_x]
         pos_y_v = self.eye[state.pos_y]
         dir_v = self.eye[state.agent_direction.value]
@@ -35,16 +36,14 @@ class TakeGoldWumpusBasicDQN(DQNAgent):
 
 # version that learn to find gold (in static grid) and gets out of the cave (after ~5000 episodes)
 class WumpusBasicStaticWorldDQN(DQNAgent):
-    def __init__(self, **kwargs):
-        super().__init__(14, len(Action), gamma=0.99, lr=0.01,
-                         batch_size=64, max_mem_size=50000,
-                         epsilon=0.8, eps_end=0.01, eps_dec=1e-5, **kwargs)
+    def __init__(self, input_dims=14, n_actions=len(Action), **kwargs):
+        super().__init__(input_dims=input_dims, n_actions=n_actions, **kwargs)
 
         self.eye = np.eye(4, dtype=np.float32)
         self.first_eps_strategy = self.action_selection_strategy
         self.second_eps_strategy = EpsilonGreedyStrategy(0.5, 0.01, 1e-5)
 
-    def from_state_to_input_vector(self, state: AgentState):
+    def from_state_to_net_input(self, state: AgentState):
         pos_x_v = self.eye[state.pos_x]
         pos_y_v = self.eye[state.pos_y]
         dir_v = self.eye[state.agent_direction.value]
@@ -57,7 +56,11 @@ class WumpusBasicStaticWorldDQN(DQNAgent):
         return v
 
     def choose_action(self, observation):
-        if observation.gold_taken:
+        self.maybe_switch_strategy(observation)
+        return super().choose_action(observation)
+
+    def maybe_switch_strategy(self, observation):
+        if observation[-1]:     # has_gold
             if self.action_selection_strategy != self.second_eps_strategy:
                 self.action_selection_strategy = self.second_eps_strategy
                 # print(f'Switching to GOLD TAKEN strategy with eps={self.action_selection_strategy.epsilon}')
@@ -65,7 +68,6 @@ class WumpusBasicStaticWorldDQN(DQNAgent):
             if self.action_selection_strategy != self.first_eps_strategy:
                 self.action_selection_strategy = self.first_eps_strategy
                 # print(f'Switching to DEFAULT strategy with eps={self.action_selection_strategy.epsilon}')
-        return super().choose_action(observation)
 
     def get_network(self):
         return DeepQNetwork(self.lr, n_actions=self.n_actions,
@@ -93,76 +95,120 @@ class WumpusBasicStaticWorldDQN(DQNAgent):
         return state_dict
 
 
-class WumpusBasicDQN(WumpusBasicStaticWorldDQN):
-    def __init__(self, **kwargs):
-        super().__init__(input_dims=14, n_actions=len(Action), gamma=0.99, lr=0.01,
-                         batch_size=64, max_mem_size=50000,
-                         epsilon=0.8, eps_end=0.01, eps_dec=1e-5, **kwargs)
+class MapChannel(Enum):
+    BREEZE = 0
+    STENCH = 1
+    GLITTER = 2
+    BUMP = 3
+    VISITED = 4
+    INITIAL_POSITION = 5
+    # SCREAM = Sense.SCREAM.value
+    # HAS_GOLD = 6
+    # N_ARROWS = 7
 
+
+class WumpusSenseMapStaticDQN(WumpusBasicStaticWorldDQN):
+    # def __init__(self, input_dims=(len(MapChannel), 7, 7), n_actions=len(Action), **kwargs):
+    def __init__(self, input_dims=len(MapChannel)*7*7+3, n_actions=len(Action), map_dims=(len(MapChannel), 7, 7),
+                 n_arrows=1, **kwargs):
+        super().__init__(input_dims=input_dims, n_actions=n_actions, gamma=0.99, lr=0.01,
+                         batch_size=64, max_mem_size=25000,
+                         epsilon=0.8, eps_end=0.01, eps_dec=1e-5, **kwargs)
+        self.input_dims = input_dims
+        self.map_dims = map_dims
+        self.initial_n_arrows = n_arrows
+        self.last_pos_x, self.last_pos_y, self.last_direction = self.get_initial_pose()
+        self.has_gold, self.arrows_left, self.was_scream = self.get_initial_extra()
         self.map = self.get_empty_map()
+        self.manual_control = TurningManualControl()
+
+    def reset_for_new_episode(self):
+        self.reset_map()
+        self.reset_pose()
+        self.reset_extra()
+
+    def get_initial_pose(self):
+        return CAVE_ENTRY_X, CAVE_ENTRY_Y, Direction.UP
+
+    def get_initial_extra(self):
+        return 0, self.initial_n_arrows, 0
 
     def get_empty_map(self):
         """
-        Returns a 6-channel 7x7 relative map in the agents mind (agent thinks that he is always in the central square
+        Returns 8-channel 7x7 relative map in the agents mind (agent thinks that he is always in the central square
         facing north), after taking actions the map rotates nad shifts accordingly
         :return:
         """
-        return np.zeros((7, 7, 6), dtype=np.float32)
+        emap = np.zeros(self.map_dims, dtype=np.float32)
+        emap[MapChannel.INITIAL_POSITION.value, 3, 3] = 1
+        return emap
 
     def reset_map(self):
         self.map = self.get_empty_map()
 
+    def reset_pose(self):
+        self.last_pos_x, self.last_pos_y, self.last_direction = self.get_initial_pose()
+
+    def reset_extra(self):
+        self.has_gold, self.arrows_left, self.was_scream = self.get_initial_extra()
+
     def update_maps(self, state: AgentState) -> None:
-        pass
+        # move map pose
+        if (state.pos_x != self.last_pos_x) or (state.pos_y != self.last_pos_y):       # moved up
+            self.map = np.hstack((np.zeros((self.map.shape[0], 1, self.map.shape[2]), dtype=np.float32),
+                                  self.map[:, :-1, :]))
+        elif state.agent_direction != self.last_direction:      # turning
+            dir_diff = state.agent_direction.value - self.last_direction.value
+            if (dir_diff == 1) or (dir_diff == -3):             # turn left
+                self.map = np.rot90(self.map, 3, axes=(1, 2))
+            else:                                               # turn right
+                self.map = np.rot90(self.map, 1, axes=(1, 2))
+        self.last_pos_x = state.pos_x
+        self.last_pos_y = state.pos_y
+        self.last_direction = state.agent_direction
 
+        # insert new sensations in central place of the map, except bump which places info in front
+        self.map[MapChannel.BREEZE.value, 3, 3] = state.senses[Sense.BREEZE.value]
+        self.map[MapChannel.STENCH.value, 3, 3] = state.senses[Sense.STENCH.value]
+        self.map[MapChannel.GLITTER.value, 3, 3] = state.senses[Sense.GLITTER.value]
+        self.map[MapChannel.BUMP.value, 2, 3] = state.senses[Sense.BUMP.value]
+        self.map[MapChannel.VISITED.value, 3, 3] = 1
+        # self.map[MapChannel.HAS_GOLD.value, :, :] = state.gold_taken
+        # self.map[MapChannel.N_ARROWS.value, :, :] = state.arrows_left
+        # self.map[MapChannel.SCREAM.value, :, :] = self.map[MapChannel.SCREAM.value, 3, 3] or state.senses[Sense.SCREAM.value]
 
-    def from_state_to_input_vector(self, state: AgentState):
+    def from_state_to_net_input(self, state: AgentState):
         self.update_maps(state)
-        pos_x_v = self.eye[state.pos_x]
-        pos_y_v = self.eye[state.pos_y]
-        dir_v = self.eye[state.agent_direction.value]
-        n_arrows = np.array(state.arrows_left, dtype=np.float32)
-        has_gold = np.array(state.gold_taken, dtype=np.float32)
-        # senses = np.array(state.senses, dtype=np.float32)
-        # v = np.hstack((pos_x_v, pos_y_v, dir_v, gold, n_arrows, senses))
-        # bump = np.array(state.senses[Sense.BUMP.value], dtype=np.float32)
-        v = np.hstack((pos_x_v, pos_y_v, dir_v, n_arrows, has_gold))
+        # for n, m in enumerate(self.map):
+        #     print(f"Map about {MapChannel(n).name}")
+        #     print(m)
+        # return self.map.copy()
+        self.has_gold = state.gold_taken
+        self.arrows_left = state.arrows_left
+        self.was_scream = self.was_scream or state.senses[Sense.SCREAM.value]
+
+        flat_map_centre = self.map.flatten()
+        v = np.hstack((self.has_gold, self.arrows_left, self.was_scream, flat_map_centre)).astype(np.float32)
         return v
 
-    # # 1 - has item, 0 - doesn't have item
-        # self.arrow = 1
-        # self.gold = 0
-        # # whether or not the last move forward resulted in a bump, 0 - no, 1 - yes
-        # self.bump = 0
-        # # whether or not there has been a scream, 0 - no, 1 - yes
-        # self.scream = 0
-        # # whether or not the room was already visited, 0 - no, 1 - yes
-        # self.visited_rooms = [[0, 0, 0, 0],
-        #                       [0, 0, 0, 0],
-        #                       [0, 0, 0, 0],
-        #                       [0, 0, 0, 0]]
-        # # whether or not the room has stench, 0 - no, 1 - yes
-        # self.stench_rooms = [[0, 0, 0, 0],
-        #                      [0, 0, 0, 0],
-        #                      [0, 0, 0, 0],
-        #                      [0, 0, 0, 0]]
-        # # whether or not the room has breeze, 0 - no, 1 - yes
-        # self.breeze_rooms = [[0, 0, 0, 0],
-        #                      [0, 0, 0, 0],
-        #                      [0, 0, 0, 0],
-        #                      [0, 0, 0, 0]]
-        # # whether or not the room has glitter, 0 - no, 1 - yes
-        # self.glitter_rooms = [[0, 0, 0, 0],
-        #                       [0, 0, 0, 0],
-        #                       [0, 0, 0, 0],
-        #                       [0, 0, 0, 0]]
-        # self.agent_pos = [[0, 0, 0, 0],
-        #                   [0, 0, 0, 0],
-        #                   [0, 0, 0, 0],
-        #                   [0, 0, 0, 0]]
-        #
-        # self.visited_rooms[CAVE_ENTRY_X][CAVE_ENTRY_Y] = 1
-        # self.agent_pos[CAVE_ENTRY_X][CAVE_ENTRY_Y] = 1
+    def maybe_switch_strategy(self, observation):
+        # if observation[MapChannel.HAS_GOLD.value, 3, 3] == 1:     # has_gold
+        if observation[0] == 1:     # has_gold
+            if self.action_selection_strategy != self.second_eps_strategy:
+                self.action_selection_strategy = self.second_eps_strategy
+                # print(f'Switching to GOLD TAKEN strategy with eps={self.action_selection_strategy.epsilon}')
+        else:
+            if self.action_selection_strategy != self.first_eps_strategy:
+                self.action_selection_strategy = self.first_eps_strategy
+                # print(f'Switching to DEFAULT strategy with eps={self.action_selection_strategy.epsilon}')
+
+    def choose_action(self, observation):
+        self.maybe_switch_strategy(observation)
+        return DQNAgent.choose_action(self, observation[None, ...])
+
+    def get_network(self):
+        return DeepQNetwork(self.lr, self.input_dims, fc1_dims=50, fc2_dims=40, n_actions=self.n_actions)
+        # return SimpleCNNQNetwork(self.input_dims, self.n_actions, self.lr)
 
 
 # version that learn to find gold (in static grid), but does not kill Wumpus due to lack of n_arrows left information

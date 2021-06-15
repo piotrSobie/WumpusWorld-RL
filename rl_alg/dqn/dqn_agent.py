@@ -12,7 +12,8 @@ from abc import abstractmethod
 class DQNAgent(Agent):
     def __init__(self, input_dims, n_actions, gamma=0.99, epsilon=0.5, lr=0.01, batch_size=64,
                  max_mem_size=500, eps_end=0.01, eps_dec=5e-4, replace_target=50, polyak=True, soft_tau=1e-2,
-                 replay_memory=None, net_state_dict=None, optimizer_state_dict=None):
+                 replay_memory=None, net_state_dict=None, optimizer_state_dict=None, manual_action=False,
+                 manual_control=None):
         super().__init__()
         self.input_dims = input_dims
         self.n_actions = n_actions
@@ -37,6 +38,8 @@ class DQNAgent(Agent):
             self.memory = ReplayMemory(max_mem_size, input_dims)
 
         self.action_selection_strategy = EpsilonGreedyStrategy(epsilon, eps_end, eps_dec)
+        self.manual_action = manual_action
+        self.manual_control = manual_control
 
         if net_state_dict is not None:
             self.Q_eval.load_state_dict(net_state_dict)
@@ -47,21 +50,22 @@ class DQNAgent(Agent):
             self.Q_eval.optimizer.load_state_dict(optimizer_state_dict)
 
     def choose_action(self, observation):
-        if np.random.random() >= self.action_selection_strategy.get_epsilon():
-            state = T.tensor(self.from_state_to_input_vector(observation)).to(self.Q_eval.device)
-            actions = self.Q_eval.forward(state)
-            action = T.argmax(actions).item()
+        if self.manual_action:
+            action = self.manual_control.get_action()
         else:
-            action = np.random.choice(self.action_space)
-        self.action_selection_strategy.update_epsilon()
+            if np.random.random() >= self.action_selection_strategy.get_epsilon():
+                state = T.tensor(observation).to(self.Q_eval.device)
+                actions = self.Q_eval.forward(state)
+                action = T.argmax(actions).item()
+            else:
+                action = np.random.choice(self.action_space)
+            self.action_selection_strategy.update_epsilon()
 
         return action
 
     def learn(self, observation, action, reward, new_observation, done, combined_replay=True):
 
-        obs_vector = self.from_state_to_input_vector(observation)
-        new_obs_vector = self.from_state_to_input_vector(new_observation)
-        self.memory.store_transitions(obs_vector, action, reward, new_obs_vector, done)
+        self.memory.store_transitions(observation, action, reward, new_observation, done)
 
         if not self.memory.can_provide_sample(self.batch_size):
             return
@@ -72,8 +76,8 @@ class DQNAgent(Agent):
             self.memory.get_sample(self.batch_size, self.Q_eval)
 
         if combined_replay:
-            state_batch[0, :] = T.tensor(obs_vector)
-            new_state_batch[0, :] = T.tensor(new_obs_vector)
+            state_batch[0, :] = T.tensor(observation)
+            new_state_batch[0, :] = T.tensor(new_observation)
             action_batch[0] = T.tensor(action)
             reward_batch[0] = T.tensor(reward)
             terminal_batch[0] = T.tensor(done)
@@ -102,7 +106,7 @@ class DQNAgent(Agent):
                 self.Q_next.load_state_dict(self.Q_eval.state_dict())
 
     @staticmethod
-    def load_static(load_state_path, n_actions, n_observations):
+    def load_static(load_state_path, n_actions, input_dims):
         loaded_state = T.load(load_state_path)
 
         batch_size_dqn = loaded_state['batch_size']
@@ -112,7 +116,7 @@ class DQNAgent(Agent):
         replay_memory_dqn = loaded_state['replay_memory']
         net_state_dict_dqn = loaded_state['state_dict']
         optimizer_state_dict_dqn = loaded_state['optimizer']
-        agent = DQNAgent(n_actions=n_actions, input_dims=n_observations, gamma=gamma_dqn, epsilon=0.0, lr=lr_dqn,
+        agent = DQNAgent(n_actions=n_actions, input_dims=input_dims, gamma=gamma_dqn, epsilon=0.0, lr=lr_dqn,
                          batch_size=batch_size_dqn, eps_end=0.0, eps_dec=0.0, replace_target=target_update_dqn,
                          replay_memory=replay_memory_dqn, net_state_dict=net_state_dict_dqn,
                          optimizer_state_dict=optimizer_state_dict_dqn)
@@ -158,11 +162,17 @@ class DQNAgent(Agent):
         T.save(state_dict, save_path)
 
     def get_instruction_string(self):
-        return ["Press p to on/off auto mode", "or any other key to one step"]
+        if self.manual_action:
+            return self.manual_control.get_instruction_string()
+        else:
+            return ["Press p to on/off auto mode", "or any other key to one step"]
 
     @abstractmethod
-    def from_state_to_input_vector(self, state):
+    def from_state_to_net_input(self, state):
         pass
+
+    def observe(self, state):
+        return self.from_state_to_net_input(state)
 
     @abstractmethod
     def get_network(self):

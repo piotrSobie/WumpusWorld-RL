@@ -39,7 +39,7 @@ rewards = {
     Reward.TOOK_GOLD: RewardDesc('Gold taken!', 500),
     Reward.DEATH_BY_WUMPUS: RewardDesc('Killed by wumpus!', -1000),
     Reward.DEATH_BY_PIT: RewardDesc('Killed by pit!', -1000),
-    Reward.WUMPUS_KILLED: RewardDesc('Wumpus killed!', 0),
+    Reward.WUMPUS_KILLED: RewardDesc('Wumpus killed!', 300),
     Reward.BUMP: RewardDesc('Bump!', -5),
     Reward.NOT_VISITED_BEFORE: RewardDesc('New place', 5)}
 
@@ -178,7 +178,7 @@ class AgentState:
 class WumpusWorldLv4a:
 
     def __init__(self, random_grid=True, number_of_wumpuses_=1,
-                 number_of_pits_=3, number_of_golds_=1):
+                 number_of_pits_=1, number_of_golds_=1):
 
         self.number_of_wumpuses = number_of_wumpuses_
         self.number_of_pits = number_of_pits_

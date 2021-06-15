@@ -6,9 +6,12 @@ class ReplayMemory:
     def __init__(self, mem_size, input_dims):
         self.mem_size = mem_size
         self.mem_counter = 0
-
-        self.state_memory = np.zeros((self.mem_size, input_dims), dtype=np.float32)
-        self.new_state_memory = np.zeros((self.mem_size, input_dims), dtype=np.float32)
+        if isinstance(input_dims, tuple):
+            mem_shape = tuple([mem_size] + list(input_dims))
+        else:
+            mem_shape = (self.mem_size, input_dims)
+        self.state_memory = np.zeros(mem_shape, dtype=np.float32)
+        self.new_state_memory = np.zeros(mem_shape, dtype=np.float32)
         self.action_memory = np.zeros(self.mem_size, dtype=np.int32)
         self.reward_memory = np.zeros(self.mem_size, dtype=np.float32)
         self.terminal_memory = np.zeros(self.mem_size, dtype=np.bool)
