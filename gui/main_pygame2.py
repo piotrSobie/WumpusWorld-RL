@@ -162,6 +162,9 @@ def main_pygame2(env: Env, agent: Agent, max_ep_len=50, save_path=None, render=F
         if i_episode == num_episodes:
             break
 
+    if save_path is not None and not test_mode:
+        agent.save(save_path)
+
     if len(average_rewards) > 10:
         plt.plot(average_rewards)
         plt.xlabel('Episode')
@@ -169,7 +172,3 @@ def main_pygame2(env: Env, agent: Agent, max_ep_len=50, save_path=None, render=F
         if save_path is not None and not test_mode:
             plt.savefig(os.path.dirname(save_path) + '/avg_rewards.png')
         plt.show()
-
-    if save_path is not None and not test_mode:
-        agent.save(save_path)
-

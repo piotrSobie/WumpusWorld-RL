@@ -33,16 +33,20 @@ class SimpleCNNQNetwork(nn.Module):
     def __init__(self, input_dims, n_actions, lr):
         super().__init__()
         in_channels = input_dims[0]
-        self.pad1 = nn.ConstantPad2d(1, -1.)
-        self.conv1 = nn.Conv2d(in_channels, 32, kernel_size=3)
+        n_filters1 = 64
+        n_filters2 = 128
+        n_filters3 = 128
+        n_dim = 32
+        # self.pad1 = nn.ConstantPad2d(1, -1.)
+        self.conv1 = nn.Conv2d(in_channels, n_filters1, kernel_size=3)
         # self.pool = nn.MaxPool2d(2, 2)
-        self.pad2 = nn.ConstantPad2d(1, -1.)
-        self.conv2 = nn.Conv2d(32, 32, kernel_size=3)
+        # self.pad2 = nn.ConstantPad2d(1, -1.)
+        self.conv2 = nn.Conv2d(n_filters1, n_filters2, kernel_size=3)
 
-        self.pad3 = nn.ConstantPad2d(1, -1.)
-        self.conv3 = nn.Conv2d(32, 32, kernel_size=3)
-        self.fc1 = nn.Linear(32*7*7, 32)
-        self.fc2 = nn.Linear(32, n_actions)
+        # # self.pad3 = nn.ConstantPad2d(1, -1.)
+        # self.conv3 = nn.Conv2d(n_filters2, n_filters3, kernel_size=3)
+        self.fc1 = nn.Linear(n_filters2*3*3, n_dim)
+        self.fc2 = nn.Linear(n_dim, n_actions)
 
         self.optimizer = optim.Adam(self.parameters(), lr=lr)
         self.loss = nn.MSELoss()
@@ -50,9 +54,12 @@ class SimpleCNNQNetwork(nn.Module):
         self.to(self.device)
 
     def forward(self, x):
-        x = F.relu(self.conv1(self.pad1(x)))
-        x = F.relu(self.conv2(self.pad2(x)))
-        x = F.relu(self.conv3(self.pad3(x)))
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        # x = F.relu(self.conv3(x))
+        # x = F.relu(self.conv1(self.pad1(x)))
+        # x = F.relu(self.conv2(self.pad2(x)))
+        # x = F.relu(self.conv3(self.pad3(x)))
         x = T.flatten(x, 1)         # flatten all dimensions except batch
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
