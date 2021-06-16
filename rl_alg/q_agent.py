@@ -6,9 +6,9 @@ from abc import abstractmethod
 
 class QAgent(Agent):
 
-    def __init__(self, n_states, n_actions, lr=0.1, gamma=0.99,  epsilon=0.5, eps_end=0.0001, eps_dec=5e-4,
-                 initial_q_value=0.0, q_table=None, manual_action=False, manual_control=None):
-        super().__init__()
+    def __init__(self, n_states, n_actions, name='QAgent', lr=0.1, gamma=0.99, epsilon=0.5, eps_end=0.0001,
+                 eps_dec=5e-4, initial_q_value=0.0, q_table=None, manual_action=False, manual_control=None):
+        super().__init__(name)
         self.gamma = gamma
         self.lr = lr
         self.action_space = [i for i in range(n_actions)]

@@ -2,7 +2,6 @@ import numpy as np
 import torch as T
 
 from rl_base import Agent
-from rl_alg.dqn.dqn_network import DeepQNetwork
 from rl_alg.dqn.replay_memory import ReplayMemory
 from rl_alg.epsilon_greedy_strategy import EpsilonGreedyStrategy
 
@@ -10,11 +9,11 @@ from abc import abstractmethod
 
 
 class DQNAgent(Agent):
-    def __init__(self, input_dims, n_actions, gamma=0.99, epsilon=0.5, lr=0.01, batch_size=64,
+    def __init__(self, input_dims, n_actions, name='DQNAgent', gamma=0.99, epsilon=0.5, lr=0.01, batch_size=64,
                  max_mem_size=500, eps_end=0.01, eps_dec=5e-4, replace_target=50, polyak=True, soft_tau=1e-2,
-                 replay_memory=None, net_state_dict=None, optimizer_state_dict=None, manual_action=False,
-                 manual_control=None):
-        super().__init__()
+                 replay_memory=None, net_state_dict=None, optimizer_state_dict=None,
+                 manual_action=False, manual_control=None):
+        super().__init__(name)
         self.input_dims = input_dims
         self.n_actions = n_actions
         self.gamma = gamma

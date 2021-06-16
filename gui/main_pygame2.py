@@ -1,9 +1,10 @@
-from rl_base import Agent
+from rl_base import Agent, Env
 from gui.manual_pygame_agent import QuitException
 from rl_alg.epsilon_greedy_strategy import EpsilonGreedyStrategy
 from time import sleep
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
 from pygame_config import *
 
@@ -29,11 +30,10 @@ def key_logic(auto_mode, done):
     return key_pressed, running_episode, last_episode, auto_mode
 
 
-def episode(screen, env, agent: Agent, max_ep_len, i_episode, auto=False, render=True, test_mode=False):
-    env.reset_env()
+def episode(screen, env: Env, agent: Agent, max_ep_len, i_episode, auto=False, render=True, test_mode=False):
+    state = env.reset_env()
     agent.reset_for_new_episode()
 
-    state = env.get_state()
     observation = agent.observe(state)
 
     if agent.manual_action:
@@ -111,21 +111,11 @@ def episode(screen, env, agent: Agent, max_ep_len, i_episode, auto=False, render
     return total_reward, n_steps, not last_episode, auto
 
 
-def main_pygame2(env, agent, max_ep_len=50, save_path=None, render=False,
+def main_pygame2(env: Env, agent: Agent, max_ep_len=50, save_path=None, render=False,
                  num_episodes=1000, info_after_episodes=50, test_mode=False):
 
     if not isinstance(agent, Agent):
         raise ValueError('Unsupported agent type.')
-
-    if test_mode:
-        agent.action_selection_strategy.epsilon = 0
-        agent.action_selection_strategy.eps_min = 0
-        agent.action_selection_strategy.eps_dec = 0
-        if hasattr(agent, "second_eps_strategy"):
-            agent.second_eps_strategy.epsilon = 0
-            agent.second_eps_strategy.eps_min = 0
-            agent.second_eps_strategy.eps_dec = 0
-        print(f"TEST MODE, greedy action selection, eps={agent.action_selection_strategy.get_epsilon()}")
 
     if render:
         # Initialize pygame
@@ -176,6 +166,8 @@ def main_pygame2(env, agent, max_ep_len=50, save_path=None, render=False,
         plt.plot(average_rewards)
         plt.xlabel('Episode')
         plt.ylabel('Total reward')
+        if save_path is not None and not test_mode:
+            plt.savefig(os.path.dirname(save_path) + '/avg_rewards.png')
         plt.show()
 
     if save_path is not None and not test_mode:

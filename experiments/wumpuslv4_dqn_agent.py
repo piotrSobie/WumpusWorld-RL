@@ -4,7 +4,7 @@ from rl_alg.dqn.dqn_agent import DQNAgent
 from rl_alg.epsilon_greedy_strategy import EpsilonGreedyStrategy
 from rl_alg.q_agent import QAgent
 from rl_alg.dqn.dqn_network import DeepQNetwork, SimpleCNNQNetwork
-from wumpus_envs.wumpus_env_lv4_a import AgentState, Action, CAVE_ENTRY_X, CAVE_ENTRY_Y, Sense, Direction
+from envs.wumpus_env import AgentState, Action, CAVE_ENTRY_X, CAVE_ENTRY_Y, Sense, Direction
 from gui.manual_pygame_agent import TurningManualControl
 import numpy as np
 
@@ -102,18 +102,19 @@ class MapChannel(Enum):
     BUMP = 3
     VISITED = 4
     INITIAL_POSITION = 5
-    # SCREAM = Sense.SCREAM.value
-    # HAS_GOLD = 6
-    # N_ARROWS = 7
+    SCREAM = 6
+    HAS_GOLD = 7
+    N_ARROWS = 8
 
 
-class WumpusSenseMapStaticDQN(WumpusBasicStaticWorldDQN):
+class FullSenseCentralizedMapDNNAgent(WumpusBasicStaticWorldDQN):
     # def __init__(self, input_dims=(len(MapChannel), 7, 7), n_actions=len(Action), **kwargs):
-    def __init__(self, input_dims=len(MapChannel)*7*7+3, n_actions=len(Action), map_dims=(len(MapChannel), 7, 7),
+    def __init__(self, input_dims=6*7*7+3, n_actions=len(Action), map_dims=(6, 7, 7),
                  n_arrows=1, **kwargs):
         super().__init__(input_dims=input_dims, n_actions=n_actions, gamma=0.99, lr=0.01,
                          batch_size=64, max_mem_size=25000,
                          epsilon=0.8, eps_end=0.01, eps_dec=1e-5, **kwargs)
+        self.name = 'FullSenseCentralizedMapDNNAgent'
         self.input_dims = input_dims
         self.map_dims = map_dims
         self.initial_n_arrows = n_arrows
@@ -207,8 +208,57 @@ class WumpusSenseMapStaticDQN(WumpusBasicStaticWorldDQN):
         return DQNAgent.choose_action(self, observation[None, ...])
 
     def get_network(self):
-        return DeepQNetwork(self.lr, self.input_dims, fc1_dims=50, fc2_dims=40, n_actions=self.n_actions)
+        # return DeepQNetwork(self.lr, self.input_dims, fc1_dims=50, fc2_dims=40, n_actions=self.n_actions)
+        return DeepQNetwork(self.lr, self.input_dims, fc1_dims=128, fc2_dims=64, n_actions=self.n_actions)
         # return SimpleCNNQNetwork(self.input_dims, self.n_actions, self.lr)
+
+
+class FullSenseCentralizedMapCNNAgent(FullSenseCentralizedMapDNNAgent):
+    def __init__(self, input_dims=(9, 7, 7), n_actions=len(Action), map_dims=(9, 7, 7), **kwargs):
+        super().__init__(input_dims=input_dims, n_actions=n_actions, map_dims=map_dims, **kwargs)
+        self.name = 'FullSenseCentralizedMapCNNAgent'
+
+    def get_empty_map(self):
+        """
+        Returns 8-channel 7x7 relative map in the agents mind (agent thinks that he is always in the central square
+        facing north), after taking actions the map rotates nad shifts accordingly
+        :return:
+        """
+        emap = np.zeros(self.map_dims, dtype=np.float32)
+        emap[MapChannel.INITIAL_POSITION.value, 3, 3] = 1
+        emap[MapChannel.N_ARROWS.value, :, :] = self.initial_n_arrows
+        return emap
+
+    def update_maps(self, state: AgentState) -> None:
+        super(FullSenseCentralizedMapCNNAgent, self).update_maps(state)
+        self.map[MapChannel.HAS_GOLD.value, :, :] = state.gold_taken
+        self.map[MapChannel.N_ARROWS.value, :, :] = state.arrows_left
+        self.map[MapChannel.SCREAM.value, :, :] = self.map[MapChannel.SCREAM.value, 3, 3] or state.senses[Sense.SCREAM.value]
+
+    def from_state_to_net_input(self, state: AgentState):
+        self.update_maps(state)
+        # for n, m in enumerate(self.map):
+        #     print(f"Map about {MapChannel(n).name}")
+        #     print(m)
+        # return self.map.copy()
+        # self.has_gold = state.gold_taken
+        # self.arrows_left = state.arrows_left
+        # self.was_scream = self.was_scream or state.senses[Sense.SCREAM.value]
+
+        return self.map.copy()
+
+    def maybe_switch_strategy(self, observation):
+        if observation[MapChannel.HAS_GOLD.value, 3, 3] == 1:     # has_gold
+            if self.action_selection_strategy != self.second_eps_strategy:
+                self.action_selection_strategy = self.second_eps_strategy
+                # print(f'Switching to GOLD TAKEN strategy with eps={self.action_selection_strategy.epsilon}')
+        else:
+            if self.action_selection_strategy != self.first_eps_strategy:
+                self.action_selection_strategy = self.first_eps_strategy
+                # print(f'Switching to DEFAULT strategy with eps={self.action_selection_strategy.epsilon}')
+
+    def get_network(self):
+        return SimpleCNNQNetwork(self.input_dims, self.n_actions, self.lr)
 
 
 # version that learn to find gold (in static grid), but does not kill Wumpus due to lack of n_arrows left information
@@ -242,7 +292,8 @@ class BasicWumpusLv3QAgent(QAgent):
         self.manual_control = TurningManualControl()
 
     def from_state_to_idx(self, state: AgentState):
-        return state.gold_taken * 128 + state.arrows_left * 64 + state.pos_x * 16 + state.pos_y * 4 + state.agent_direction.value
+        return state.gold_taken * 128 + state.arrows_left * 64 + state.pos_x * 16 + state.pos_y * 4 + \
+               state.agent_direction.value
 
 
 class BasicWumpusQAgent(QAgent):
@@ -252,7 +303,8 @@ class BasicWumpusQAgent(QAgent):
         self.manual_control = TurningManualControl()
 
     def from_state_to_idx(self, state: AgentState):
-        a = state.gold_taken * 128 + state.arrows_left * 64 + state.pos_x * 16 + state.pos_y * 4 + state.agent_direction.value
+        a = state.gold_taken * 128 + state.arrows_left * 64 + state.pos_x * 16 + state.pos_y * 4 + \
+            state.agent_direction.value
         senses = np.array(state.senses, dtype=np.float32)
         b = int(senses.dot(1 << np.arange(senses.size)[::-1]))
         return (a << 5) + b

@@ -1,47 +1,65 @@
 import random
+from rl_base import Env
 import numpy as np
-from typing import NamedTuple, List
+from typing import List, NamedTuple
 from enum import Enum
 from pygame_config import *
 from copy import deepcopy
+
+
+class WumpusSetting(NamedTuple):
+    action_costs: List
+    event_rewards: List
+    random_grid: bool
+    taking_gold_ends: bool
+    n_golds: int
+    n_pits: int
+    n_wumpuses: int
 
 
 class Action(Enum):
     FORWARD=0; TURN_LEFT=1; TURN_RIGHT=2; TAKE_GOLD=3; SHOOT=4; CLIMB=5
 
 
-class ActionDesc(NamedTuple):
-    info: str
-    cost: float
-
-
-actions = {
-    Action.FORWARD: ActionDesc("forward", -0.1),
-    Action.TURN_LEFT: ActionDesc("turn left", -5),
-    Action.TURN_RIGHT: ActionDesc("turn right", -5),
-    Action.TAKE_GOLD: ActionDesc("take gold", -20),
-    Action.SHOOT: ActionDesc("shoot", -20),
-    Action.CLIMB: ActionDesc("climb out", -20)}
-
-
-class Reward(Enum):
+class Event(Enum):
     LEFT_WITH_GOLD=0; TOOK_GOLD=1; DEATH_BY_WUMPUS=2; DEATH_BY_PIT=3
-    WUMPUS_KILLED=4; BUMP=5; NOT_VISITED_BEFORE=6
+    WUMPUS_KILLED=4; BUMP=5; NOT_VISITED_FIELD=6
 
 
-class RewardDesc(NamedTuple):
-    info: str
-    reward: float
+actions_desc = ["forward", "turn left", "turn right", "take gold", "shoot", "climb out"]
+event_desc = ['Left with gold!', 'Gold taken!', 'Killed by wumpus!', 'Killed by pit!', 'Wumpus killed!', 'Bump!',
+              'New field']
 
-
-rewards = {
-    Reward.LEFT_WITH_GOLD: RewardDesc("Left with gold!", 1000),
-    Reward.TOOK_GOLD: RewardDesc('Gold taken!', 500),
-    Reward.DEATH_BY_WUMPUS: RewardDesc('Killed by wumpus!', -1000),
-    Reward.DEATH_BY_PIT: RewardDesc('Killed by pit!', -1000),
-    Reward.WUMPUS_KILLED: RewardDesc('Wumpus killed!', 300),
-    Reward.BUMP: RewardDesc('Bump!', -5),
-    Reward.NOT_VISITED_BEFORE: RewardDesc('New place', 5)}
+wumpus_settings = {
+    'static_wumpus': WumpusSetting(
+        action_costs=[-0.1, -5., -5., -20, -20, -20],
+        event_rewards=[1000, 500, -1000, -1000, 300, -5, 5],
+        random_grid=False, taking_gold_ends=False, n_golds=1, n_pits=3, n_wumpuses=1),
+    'only_gold': WumpusSetting(
+        action_costs=[-0.1, -5., -5., -20, -20, -20],
+        event_rewards=[1000, 500, -1000, -1000, 300, -5, 5],
+        random_grid=True, taking_gold_ends=False, n_golds=1, n_pits=0, n_wumpuses=0),
+    'one_pit_only': WumpusSetting(
+        action_costs=[-1, -20., -20., -40, -40, -40],
+        event_rewards=[1000, 500, -1000, -1000, 300, -5, 5],
+        random_grid=True, taking_gold_ends=False, n_golds=1, n_pits=1, n_wumpuses=0),
+    'wumpus_gold_no_pits': WumpusSetting(
+        action_costs=[-0.1, -5., -5., -20, -20, -20],
+        event_rewards=[1000, 500, -1000, -1000, 300, -5, 50],
+        random_grid=True, taking_gold_ends=False, n_golds=1, n_pits=0, n_wumpuses=1),
+    'wumpus_one_pit': WumpusSetting(
+        action_costs=[-1, -20., -20., -40, -40, -40],
+        event_rewards=[1000, 500, -1000, -1000, 300, -5, 5],
+        random_grid=True, taking_gold_ends=False, n_golds=1, n_pits=1, n_wumpuses=1),
+    'wumpus_two_pits': WumpusSetting(
+        action_costs=[-0.1, -5., -5., -20, -20, -20],
+        event_rewards=[1000, 500, -1000, -1000, 300, -5, 5],
+        random_grid=True, taking_gold_ends=False, n_golds=1, n_pits=2, n_wumpuses=1),
+    'full_wumpus': WumpusSetting(
+        action_costs=[-0.1, -5., -5., -20, -20, -20],
+        event_rewards=[1000, 500, -1000, -1000, 300, -5, 5],
+        random_grid=True, taking_gold_ends=False, n_golds=1, n_pits=3, n_wumpuses=1),
+}
 
 
 class FieldType(Enum):
@@ -52,7 +70,6 @@ field_to_asset_key = {
     FieldType.WUMPUS: 'wumpus',
     FieldType.GOLD: 'gold',
     FieldType.REGULAR: 'regular',
-
 }
 
 
@@ -175,25 +192,22 @@ class AgentState:
         return s
 
 
-class WumpusWorldLv4a:
+class WumpusWorld(Env):
 
-    def __init__(self, random_grid=True, number_of_wumpuses_=1,
-                 number_of_pits_=1, number_of_golds_=1):
-
-        self.number_of_wumpuses = number_of_wumpuses_
-        self.number_of_pits = number_of_pits_
-        self.number_of_golds = number_of_golds_
-        self.random_grid = random_grid
-
-        self.grids = GridWorld(self.random_grid, self.number_of_wumpuses, self.number_of_golds, self.number_of_pits)
-        self.agent_state = AgentState(CAVE_ENTRY_X, CAVE_ENTRY_Y, self.number_of_wumpuses, self.grids)
-
+    def __init__(self, settings: WumpusSetting, name="Wumpus"):
+        super().__init__(name)
+        self.settings = settings
+        self.grids = GridWorld(settings.random_grid, settings.n_wumpuses,
+                               settings.n_golds, settings.n_pits)
+        self.agent_state = AgentState(CAVE_ENTRY_X, CAVE_ENTRY_Y, settings.n_wumpuses, self.grids)
         # for rendering
         self.assets = None
 
     def reset_env(self):
-        self.grids = GridWorld(self.random_grid, self.number_of_wumpuses, self.number_of_golds, self.number_of_pits)
-        self.agent_state = AgentState(CAVE_ENTRY_X, CAVE_ENTRY_Y, self.number_of_wumpuses, self.grids)
+        self.grids = GridWorld(self.settings.random_grid, self.settings.n_wumpuses, self.settings.n_golds,
+                               self.settings.n_pits)
+        self.agent_state = AgentState(CAVE_ENTRY_X, CAVE_ENTRY_Y, self.settings.n_wumpuses, self.grids)
+        return self.get_state()
 
     def get_state(self):
         return deepcopy(self.agent_state)
@@ -209,8 +223,8 @@ class WumpusWorldLv4a:
     def step(self, action_):
         action = Action(action_)
 
-        reward = actions[action].cost
-        info = [f"Agent action: {actions[action].info}."]
+        reward = self.settings.action_costs[action_]
+        info = [f"Agent action: {actions_desc[action_]}."]
 
         self.grids.visited[self.agent_state.pos_x, self.agent_state.pos_y] = 1
 
@@ -243,23 +257,21 @@ class WumpusWorldLv4a:
             else:
                 raise Exception("Invalid agent direction")
             # check if met Wumpus or fell into pit
+            event = None
             if self.grids.objects[self.agent_state.pos_x][self.agent_state.pos_y] == FieldType.WUMPUS:
                 done = True
-                reward += rewards[Reward.DEATH_BY_WUMPUS].reward
-                info += [rewards[Reward.DEATH_BY_WUMPUS].info]
+                event = Event.DEATH_BY_WUMPUS
             elif self.grids.objects[self.agent_state.pos_x][self.agent_state.pos_y] == FieldType.PIT:
                 done = True
-                reward += rewards[Reward.DEATH_BY_PIT].reward
-                info += [rewards[Reward.DEATH_BY_PIT].info]
+                event = Event.DEATH_BY_PIT
             else:
                 if bump:
-                    reward += rewards[Reward.BUMP].reward
-                    info += [rewards[Reward.BUMP].info]
+                    event = Event.BUMP
                 if self.grids.visited[self.agent_state.pos_x][self.agent_state.pos_y] == 0:
-                    reward += rewards[Reward.NOT_VISITED_BEFORE].reward
-                    info += [rewards[Reward.NOT_VISITED_BEFORE].info]
-                # if self.grids.objects[self.agent_state.pos_x][self.agent_state.pos_y] == FieldType.GOLD:
-                #     print('Stepped into GOLD!')
+                    event = Event.NOT_VISITED_FIELD
+            if event is not None:
+                reward += self.settings.event_rewards[event.value]
+                info += [event_desc[event.value]]
 
         elif action == Action.TURN_LEFT:
             self.agent_state.agent_direction = Direction((self.agent_state.agent_direction.value + 1) % 4)
@@ -270,11 +282,11 @@ class WumpusWorldLv4a:
                 self.grids.objects[self.agent_state.pos_x][self.agent_state.pos_y] = FieldType.REGULAR
                 self.agent_state.gold_taken = True
                 # print('TOOK GOLD!')
-                reward += rewards[Reward.TOOK_GOLD].reward
-                info += [rewards[Reward.TOOK_GOLD].info]
-                # uncomment 2 lines below to finish game after taking gold
-                # done = True
-                # game_won = True
+                reward += self.settings.event_rewards[Event.TOOK_GOLD.value]
+                info += [event_desc[Event.TOOK_GOLD.value]]
+                if self.settings.taking_gold_ends:
+                    done = True
+                    game_won = True
             else:
                 info += ["No gold here."]
         elif action == Action.SHOOT:
@@ -303,15 +315,15 @@ class WumpusWorldLv4a:
                             break
                 if wumpus_killed:
                     scream = True
-                    reward += rewards[Reward.WUMPUS_KILLED].reward
-                    info += [rewards[Reward.WUMPUS_KILLED].info]
+                    reward += self.settings.event_rewards[Event.WUMPUS_KILLED.value]
+                    info += [event_desc[Event.WUMPUS_KILLED.value]]
             else:
                 info += ["Arrow no available, nothing happened."]
         elif action == Action.CLIMB:
             if (self.agent_state.pos_x == CAVE_ENTRY_X) & (self.agent_state.pos_y == CAVE_ENTRY_Y)\
                     & self.agent_state.gold_taken:
-                reward += rewards[Reward.LEFT_WITH_GOLD].reward
-                info += [rewards[Reward.LEFT_WITH_GOLD].info]
+                reward += self.settings.event_rewards[Event.LEFT_WITH_GOLD.value]
+                info += [event_desc[Event.LEFT_WITH_GOLD.value]]
                 done = True
                 game_won = True
             else:
@@ -343,7 +355,7 @@ class WumpusWorldLv4a:
                         color = GREEN if self.grids.visited[x][y] else BROWN
                         pygame.draw.rect(screen, color, pygame.Rect(y * FIELD_SIZE_X, x * FIELD_SIZE_Y,
                                                                     FIELD_SIZE_X, FIELD_SIZE_Y))
-                    else: # pit wumpus or gold
+                    else:       # pit wumpus or gold
                         screen.blit(self.assets[obj], (y * FIELD_SIZE_X, x * FIELD_SIZE_Y, FIELD_SIZE_X, FIELD_SIZE_Y))
 
                 pygame.draw.rect(screen, BLUE, pygame.Rect(y * FIELD_SIZE_X, x * FIELD_SIZE_Y,

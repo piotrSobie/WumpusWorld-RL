@@ -1,6 +1,5 @@
-import random
+from rl_base import Env
 import numpy as np
-
 from pygame_config import *
 
 
@@ -8,8 +7,9 @@ from pygame_config import *
 # agent can take actions (4): go up, down, right, left
 # states (16): each grid represents different state
 # stochastic environment
-class FrozenLake:
-    def __init__(self):
+class FrozenLake(Env):
+    def __init__(self, name='FrozenLake'):
+        super().__init__(name)
         # go up, down, right, left
         self.action_space = [0, 1, 2, 3]
         self.action_space_n = len(self.action_space)
@@ -71,6 +71,7 @@ class FrozenLake:
     def reset_env(self):
         self.grid_world = self.get_new_env()
         self.agentPosXY = [self.cave_entry_x, self.cave_entry_y]
+        return self.get_state()
 
     def get_state(self):
         return self.state_number[self.agentPosXY[0]][self.agentPosXY[1]]
