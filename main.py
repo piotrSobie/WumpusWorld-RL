@@ -7,7 +7,7 @@ from rl_alg.dqn.dqn_default_params import DqnDefaultParams
 from experiments.wumpuslv4_dqn_agent import FullSenseCentralizedMapDNNAgent, BasicWumpusQAgent, \
     FullSenseCentralizedMapCNNAgent
 from experiments.frozen_lake_agents import FrozenLakeDQNAgent, FrozenLakeQAgent
-from experiments.wumpus_agents_v2 import CentralizedMapDNNAgent
+from experiments.wumpus_agents_v2 import CentralizedMapDNNAgent, CentralizedMapCNNAgent
 from glob import glob
 
 import argparse
@@ -117,10 +117,9 @@ if __name__ == '__main__':
             raise NotImplementedError
     elif args.env in wumpus_settings:
         if args.mode.startswith("dqn"):
-            # agent = WumpusBasicStaticWorldDQN()
-            # agent = FullSenseCentralizedMapDNNAgent(manual_action=manual)
             agent = CentralizedMapDNNAgent(manual_action=manual)
-            # agent = FullSenseCentralizedMapCNNAgent(manual_action=manual)
+        elif args.mode.startswith("cnn_dqn"):
+             agent = CentralizedMapCNNAgent(manual_action=manual)
         elif args.mode == "manual":
             agent = ManualPygameAgent()
         elif args.mode.startswith("q-learn"):

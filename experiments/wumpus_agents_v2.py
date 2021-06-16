@@ -26,6 +26,7 @@ class CentralizedMapDNNAgent(FullSenseCentralizedMapDNNAgent):
                  n_arrows=1, **kwargs):
         super().__init__(input_dims=input_dims, n_actions=n_actions, map_dims=map_dims,
                          n_arrows=n_arrows, **kwargs)
+        self.name = 'CentralizedMapDNNAgent'
 
     def get_empty_map(self):
         emap = np.zeros(self.map_dims, dtype=np.float32)
@@ -80,47 +81,48 @@ class CentralizedMapDNNAgent(FullSenseCentralizedMapDNNAgent):
         # return SimpleCNNQNetwork(self.input_dims, self.n_actions, self.lr)
 
 
-# class CentralizedMapCNN(CentralizedMapDNN):
-#
-#     def __init__(self, input_dims=(8, 7, 7), n_actions=len(Action), map_dims=(8, 7, 7), **kwargs):
-#         super().__init__(input_dims=input_dims, n_actions=n_actions, map_dims=map_dims, **kwargs)
-#         self.name = 'CentralizedMapCompressedCNNAgent'
-#
-#     def get_empty_map(self):
-#         emap = np.zeros(self.map_dims, dtype=np.float32)
-#         emap[MapChannel2.BUMP.value, 3, 3] = ABSENCE
-#         emap[MapChannel2.INITIAL_POSITION.value, 3, 3] = PRESENCE
-#         emap[MapChannel2.N_ARROWS.value, :, :] = self.initial_n_arrows
-#         return emap
-#
-#     def update_maps(self, state: AgentState) -> None:
-#         self.map[MapChannel2.HAS_GOLD.value, :, :] = state.gold_taken
-#         self.map[MapChannel2.N_ARROWS.value, :, :] = state.arrows_left
-#         self.map[MapChannel2.SCREAM.value, :, :] = self.map[MapChannel2.SCREAM.value, 3, 3] or state.senses[Sense.SCREAM.value]
-#
-#     def from_state_to_net_input(self, state: AgentState):
-#         self.update_maps(state)
-#         # for n, m in enumerate(self.map):
-#         #     print(f"Map about {MapChannel2(n).name}")
-#         #     print(m)
-#         # return self.map.copy()
-#         # self.has_gold = state.gold_taken
-#         # self.arrows_left = state.arrows_left
-#         # self.was_scream = self.was_scream or state.senses[Sense.SCREAM.value]
-#
-#         return self.map.copy()
-#
-#     def maybe_switch_strategy(self, observation):
-#         if observation[MapChannel2.HAS_GOLD.value, 3, 3] == 1:     # has_gold
-#             if self.action_selection_strategy != self.second_eps_strategy:
-#                 self.action_selection_strategy = self.second_eps_strategy
-#                 # print(f'Switching to GOLD TAKEN strategy with eps={self.action_selection_strategy.epsilon}')
-#         else:
-#             if self.action_selection_strategy != self.first_eps_strategy:
-#                 self.action_selection_strategy = self.first_eps_strategy
-#                 # print(f'Switching to DEFAULT strategy with eps={self.action_selection_strategy.epsilon}')
-#
-#     def get_network(self):
-#         return SimpleCNNQNetwork(self.input_dims, self.n_actions, self.lr)
-#
-#
+class CentralizedMapCNNAgent(CentralizedMapDNNAgent):
+
+    def __init__(self, input_dims=(8, 7, 7), n_actions=len(Action), map_dims=(8, 9, 9),
+                 batch_size=32, max_mem_size=50000, **kwargs):
+        super().__init__(input_dims=input_dims, n_actions=n_actions, map_dims=map_dims,
+                         batch_size=batch_size, **kwargs)
+        self.name = 'CentralizedMapCNNAgent'
+
+    def get_empty_map(self):
+        emap = np.zeros(self.map_dims, dtype=np.float32)
+        emap[MapChannel2.INITIAL_POSITION.value, 4, 4] = PRESENCE
+        emap[MapChannel2.N_ARROWS.value, :, :] = self.initial_n_arrows
+        return emap
+
+    def update_maps(self, state: AgentState) -> None:
+        super().update_maps(state)
+        self.map[MapChannel2.HAS_GOLD.value, :, :] = state.gold_taken
+        self.map[MapChannel2.N_ARROWS.value, :, :] = state.arrows_left
+        self.map[MapChannel2.SCREAM.value, :, :] = self.map[MapChannel2.SCREAM.value, 3, 3] or state.senses[
+            Sense.SCREAM.value]
+
+    def from_state_to_net_input(self, state: AgentState):
+        self.update_maps(state)
+        # for n, m in enumerate(self.map):
+        #     print(f"Map about {MapChannel2(n).name}")
+        #     print(m)
+        # return self.map.copy()
+        # self.has_gold = state.gold_taken
+        # self.arrows_left = state.arrows_left
+        # self.was_scream = self.was_scream or state.senses[Sense.SCREAM.value]
+
+        return self.map[:, 1:-1, 1:-1].copy()
+
+    def maybe_switch_strategy(self, observation):
+        if observation[MapChannel2.HAS_GOLD.value, 3, 3] == 1:     # has_gold
+            if self.action_selection_strategy != self.second_eps_strategy:
+                self.action_selection_strategy = self.second_eps_strategy
+                # print(f'Switching to GOLD TAKEN strategy with eps={self.action_selection_strategy.epsilon}')
+        else:
+            if self.action_selection_strategy != self.first_eps_strategy:
+                self.action_selection_strategy = self.first_eps_strategy
+                # print(f'Switching to DEFAULT strategy with eps={self.action_selection_strategy.epsilon}')
+
+    def get_network(self):
+        return SimpleCNNQNetwork(self.input_dims, self.n_actions, self.lr)

@@ -110,10 +110,10 @@ class MapChannel(Enum):
 class FullSenseCentralizedMapDNNAgent(WumpusBasicStaticWorldDQN):
     # def __init__(self, input_dims=(len(MapChannel), 7, 7), n_actions=len(Action), **kwargs):
     def __init__(self, input_dims=6*7*7+3, n_actions=len(Action), map_dims=(6, 7, 7),
-                 n_arrows=1, **kwargs):
-        super().__init__(input_dims=input_dims, n_actions=n_actions, gamma=0.99, lr=0.01,
-                         batch_size=64, max_mem_size=25000,
-                         epsilon=0.8, eps_end=0.01, eps_dec=1e-5, **kwargs)
+                 n_arrows=1, batch_size=64, max_mem_size=100000, **kwargs):
+        super().__init__(input_dims=input_dims, n_actions=n_actions, gamma=0.99, lr=0.001,
+                         batch_size=batch_size, max_mem_size=max_mem_size,
+                         epsilon=1.0, eps_end=0.01, eps_dec=1e-5, **kwargs)
         self.name = 'FullSenseCentralizedMapDNNAgent'
         self.input_dims = input_dims
         self.map_dims = map_dims

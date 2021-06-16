@@ -95,6 +95,12 @@ class GridWorld:
             env.append([FieldType.REGULAR] * size_y)
         # noinspection PyTypeChecker
         env[CAVE_ENTRY_X][CAVE_ENTRY_Y] = ""
+        # noinspection PyTypeChecker
+        env[CAVE_ENTRY_X-1][CAVE_ENTRY_Y] = ""
+        # noinspection PyTypeChecker
+        env[CAVE_ENTRY_X][CAVE_ENTRY_Y+1] = ""
+        # noinspection PyTypeChecker
+        env[CAVE_ENTRY_X-1][CAVE_ENTRY_Y+1] = ""
 
         wumpus_nr = n_wumpuses
         gold_nr = n_golds
@@ -116,6 +122,9 @@ class GridWorld:
                     env[random_x][random_y] = FieldType.PIT
 
         env[CAVE_ENTRY_X][CAVE_ENTRY_Y] = FieldType.REGULAR
+        env[CAVE_ENTRY_X-1][CAVE_ENTRY_Y] = FieldType.REGULAR
+        env[CAVE_ENTRY_X][CAVE_ENTRY_Y+1] = FieldType.REGULAR
+        env[CAVE_ENTRY_X-1][CAVE_ENTRY_Y+1] = FieldType.REGULAR
 
         return env
 
