@@ -153,8 +153,7 @@ class FullSenseCentralizedMapDNNAgent(WumpusBasicStaticWorldDQN):
     def reset_extra(self):
         self.has_gold, self.arrows_left, self.was_scream = self.get_initial_extra()
 
-    def update_maps(self, state: AgentState) -> None:
-        # move map pose
+    def update_map_pose(self, state: AgentState) -> None:
         if (state.pos_x != self.last_pos_x) or (state.pos_y != self.last_pos_y):       # moved up
             self.map = np.hstack((np.zeros((self.map.shape[0], 1, self.map.shape[2]), dtype=np.float32),
                                   self.map[:, :-1, :]))
@@ -164,19 +163,25 @@ class FullSenseCentralizedMapDNNAgent(WumpusBasicStaticWorldDQN):
                 self.map = np.rot90(self.map, 3, axes=(1, 2))
             else:                                               # turn right
                 self.map = np.rot90(self.map, 1, axes=(1, 2))
+
+    def update_pose(self, state: AgentState) -> None:
         self.last_pos_x = state.pos_x
         self.last_pos_y = state.pos_y
         self.last_direction = state.agent_direction
+
+    def update_maps(self, state: AgentState) -> None:
+        if self.map[MapChannel.BUMP.value, 3, 4] == 0 and state.senses[Sense.BUMP.value]:
+            self.map[MapChannel.BUMP.value, 3, 4] = 1
+
+        self.update_map_pose(state)
 
         # insert new sensations in central place of the map, except bump which places info in front
         self.map[MapChannel.BREEZE.value, 3, 3] = state.senses[Sense.BREEZE.value]
         self.map[MapChannel.STENCH.value, 3, 3] = state.senses[Sense.STENCH.value]
         self.map[MapChannel.GLITTER.value, 3, 3] = state.senses[Sense.GLITTER.value]
-        self.map[MapChannel.BUMP.value, 2, 3] = state.senses[Sense.BUMP.value]
         self.map[MapChannel.VISITED.value, 3, 3] = 1
-        # self.map[MapChannel.HAS_GOLD.value, :, :] = state.gold_taken
-        # self.map[MapChannel.N_ARROWS.value, :, :] = state.arrows_left
-        # self.map[MapChannel.SCREAM.value, :, :] = self.map[MapChannel.SCREAM.value, 3, 3] or state.senses[Sense.SCREAM.value]
+
+        self.update_pose(state)
 
     def from_state_to_net_input(self, state: AgentState):
         self.update_maps(state)
