@@ -33,14 +33,14 @@ event_desc = ['Left with gold!', 'Gold taken!', 'Killed by wumpus!', 'Killed by 
 wumpus_settings = {
     'static_wumpus': WumpusSetting(
         action_costs=[-0.1, -5., -5., -20, -20, -20],
-        event_rewards=[1000, 500, -1000, -1000, 300, -5, 5],
+        event_rewards=[1000, 500, -1000, -1000, 300, -5, 50],
         random_grid=False, taking_gold_ends=False, n_golds=1, n_pits=3, n_wumpuses=1),
     'only_gold': WumpusSetting(
         action_costs=[-0.1, -5., -5., -20, -20, -20],
-        event_rewards=[1000, 500, -1000, -1000, 300, -5, 5],
+        event_rewards=[1000, 500, -1000, -1000, 300, -5, 50],
         random_grid=True, taking_gold_ends=False, n_golds=1, n_pits=0, n_wumpuses=0),
     'one_pit_only': WumpusSetting(
-        action_costs=[-1, -20., -20., -40, -40, -40],
+        action_costs=[-0.1, -5., -5., -20, -20, -20],
         event_rewards=[1000, 500, -1000, -1000, 300, -5, 5],
         random_grid=True, taking_gold_ends=False, n_golds=1, n_pits=1, n_wumpuses=0),
     'wumpus_gold_no_pits': WumpusSetting(
@@ -48,16 +48,16 @@ wumpus_settings = {
         event_rewards=[1000, 500, -1000, -1000, 300, -5, 50],
         random_grid=True, taking_gold_ends=False, n_golds=1, n_pits=0, n_wumpuses=1),
     'wumpus_one_pit': WumpusSetting(
-        action_costs=[-1, -20., -20., -40, -40, -40],
-        event_rewards=[1000, 500, -1000, -1000, 300, -5, 5],
+        action_costs=[-0.1, -5., -5., -20, -20, -20],
+        event_rewards=[1000, 500, -1000, -1000, 300, -5, 50],
         random_grid=True, taking_gold_ends=False, n_golds=1, n_pits=1, n_wumpuses=1),
     'wumpus_two_pits': WumpusSetting(
         action_costs=[-0.1, -5., -5., -20, -20, -20],
-        event_rewards=[1000, 500, -1000, -1000, 300, -5, 5],
+        event_rewards=[1000, 500, -1000, -1000, 300, -5, 50],
         random_grid=True, taking_gold_ends=False, n_golds=1, n_pits=2, n_wumpuses=1),
     'full_wumpus': WumpusSetting(
         action_costs=[-0.1, -5., -5., -20, -20, -20],
-        event_rewards=[1000, 500, -1000, -1000, 300, -5, 5],
+        event_rewards=[1000, 500, -1000, -1000, 300, -5, 50],
         random_grid=True, taking_gold_ends=False, n_golds=1, n_pits=3, n_wumpuses=1),
 }
 
