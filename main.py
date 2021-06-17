@@ -159,6 +159,10 @@ if __name__ == '__main__':
         agent.action_selection_strategy.epsilon = epsilon_start
         agent.action_selection_strategy.eps_dec = epsilon_decay
         agent.action_selection_strategy.eps_min = epsilon_min
+        if hasattr(agent, "second_eps_strategy"):
+            agent.second_eps_strategy.epsilon = 0.5
+            agent.second_eps_strategy.eps_min = 0.01
+            agent.second_eps_strategy.eps_dec = 1e-5
 
     if args.test_mode:
         agent.action_selection_strategy.epsilon = 0
